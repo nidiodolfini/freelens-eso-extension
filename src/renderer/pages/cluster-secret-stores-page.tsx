@@ -3,7 +3,7 @@ import * as MobxReact from "mobx-react";
 import {
   ClusterSecretStore,
   type ClusterSecretStoreApi,
-  clusterSecretStoreStore,
+  getClusterSecretStoreStore,
 } from "../api/clustersecretstore/clustersecretstore-v1";
 import styles from "./eso-pages.module.scss";
 import stylesInline from "./eso-pages.module.scss?inline";
@@ -38,7 +38,7 @@ const renderTableHeader: { title: string; sortBy: keyof typeof sortingCallbacks;
 
 // The columns mirror `kubectl get css`: STATUS, CAPABILITIES, READY.
 export const ClusterSecretStoresPage = observer(() => {
-  const store = clusterSecretStoreStore;
+  const store = getClusterSecretStoreStore();
 
   return (
     <>

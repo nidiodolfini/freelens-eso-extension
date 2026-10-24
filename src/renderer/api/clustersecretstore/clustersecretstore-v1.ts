@@ -1,4 +1,5 @@
 import { Renderer } from "@freelensapp/extensions";
+import { lazyStore } from "../lazy-store";
 import {
   getReady,
   getReadyCondition,
@@ -72,18 +73,18 @@ export class ClusterSecretStore extends Renderer.K8sApi.KubeObject<
 }
 
 export class ClusterSecretStoreApi extends Renderer.K8sApi.KubeApi<ClusterSecretStore> {}
+export class ClusterSecretStoreStore extends Renderer.K8sApi.KubeObjectStore<
+  ClusterSecretStore,
+  ClusterSecretStoreApi
+> {}
 
 // `autoRegister: false` keeps the API out of the cluster's apiManager: the
 // "Not Available" page of `createAvailableVersionPage` relies on the apiBase
-// being found only when the cluster actually serves the CRD. The store below
-// is registered in the extension's `onActivate` instead.
-export const clusterSecretStoreApi = new ClusterSecretStoreApi({
-  objectConstructor: ClusterSecretStore,
-  autoRegister: false,
-});
-
-export class ClusterSecretStoreStore extends Renderer.K8sApi.KubeObjectStore<ClusterSecretStore> {
-  readonly api = clusterSecretStoreApi;
-}
-
-export const clusterSecretStoreStore = new ClusterSecretStoreStore();
+// being found only through the API the host registers when the cluster
+// serves the CRD. The store is built on first use, in a cluster frame.
+export const getClusterSecretStoreStore = lazyStore(
+  () =>
+    new ClusterSecretStoreStore(
+      new ClusterSecretStoreApi({ objectConstructor: ClusterSecretStore, autoRegister: false }),
+    ),
+);

@@ -100,9 +100,10 @@ electron.vite.config.js                          # electron-vite config (main + 
 build/global-externals.js                        # plugin: react/mobx/... -> host globals (v1)
 src/
   main/index.ts                                  # main entry (stateless)
-  renderer/index.tsx                             # v1 registrations: apiManager, 3 pages, details, menu
+  renderer/index.tsx                             # v1 registrations: 3 pages, details, menu
   renderer/api/types.ts                          # ESO spec/status types
   renderer/api/store-helpers.ts                  # condition helpers shared by the models and panels
+  renderer/api/lazy-store.ts                     # store built and registered on first use, in a cluster frame
   renderer/api/externalsecret/externalsecret-v1.ts   # ExternalSecret model (+ Api/Store, test)
   renderer/api/secretstore/secretstore-v1.ts         # SecretStore model (+ Api/Store, test)
   renderer/api/clustersecretstore/clustersecretstore-v1.ts # ClusterSecretStore model (+ Api/Store, test)

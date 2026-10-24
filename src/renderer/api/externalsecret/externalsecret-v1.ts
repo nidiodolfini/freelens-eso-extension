@@ -1,4 +1,5 @@
 import { Renderer } from "@freelensapp/extensions";
+import { lazyStore } from "../lazy-store";
 import { getReady, getReadyCondition, getStatusClass, getStatusText } from "../store-helpers";
 
 import type { EsoCondition, EsoKubeObjectCRD, ExternalSecretSpec, ExternalSecretStatus } from "../types";
@@ -90,18 +91,12 @@ export class ExternalSecret extends Renderer.K8sApi.KubeObject<
 }
 
 export class ExternalSecretApi extends Renderer.K8sApi.KubeApi<ExternalSecret> {}
+export class ExternalSecretStore extends Renderer.K8sApi.KubeObjectStore<ExternalSecret, ExternalSecretApi> {}
 
 // `autoRegister: false` keeps the API out of the cluster's apiManager: the
 // "Not Available" page of `createAvailableVersionPage` relies on the apiBase
-// being found only when the cluster actually serves the CRD. The store below
-// is registered in the extension's `onActivate` instead.
-export const externalSecretApi = new ExternalSecretApi({
-  objectConstructor: ExternalSecret,
-  autoRegister: false,
-});
-
-export class ExternalSecretStore extends Renderer.K8sApi.KubeObjectStore<ExternalSecret> {
-  readonly api = externalSecretApi;
-}
-
-export const externalSecretStore = new ExternalSecretStore();
+// being found only through the API the host registers when the cluster
+// serves the CRD. The store is built on first use, in a cluster frame.
+export const getExternalSecretStore = lazyStore(
+  () => new ExternalSecretStore(new ExternalSecretApi({ objectConstructor: ExternalSecret, autoRegister: false })),
+);
