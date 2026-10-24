@@ -4,9 +4,9 @@
  */
 
 import { Renderer } from "@freelensapp/extensions";
-import { ClusterSecretStore, clusterSecretStoreStore } from "./api/clustersecretstore/clustersecretstore-v1";
-import { ExternalSecret, externalSecretStore } from "./api/externalsecret/externalsecret-v1";
-import { SecretStore, secretStoreStore } from "./api/secretstore/secretstore-v1";
+import { ClusterSecretStore } from "./api/clustersecretstore/clustersecretstore-v1";
+import { ExternalSecret } from "./api/externalsecret/externalsecret-v1";
+import { SecretStore } from "./api/secretstore/secretstore-v1";
 import { createAvailableVersionPage } from "./components/available-version";
 import {
   withDetailsErrorBoundary,
@@ -41,16 +41,6 @@ const ClusterSecretStoresPageAvailable = createAvailableVersionPage("Cluster Sec
 // replace the whole cluster view. Each registration field is mapped through its wrapper, so an entry added to it is
 // wrapped too.
 export default class EsoRenderer extends Renderer.LensExtension {
-  onActivate() {
-    // The v1 API registers the extension's stores with the cluster's
-    // apiManager; `apiManager.getStore(apiBase)` resolves them when the
-    // cluster serves the CRD, which is also what shows the pages' "Not
-    // Available" state before that.
-    Renderer.K8sApi.apiManager.registerStore(externalSecretStore);
-    Renderer.K8sApi.apiManager.registerStore(secretStoreStore);
-    Renderer.K8sApi.apiManager.registerStore(clusterSecretStoreStore);
-  }
-
   clusterPages: Renderer.LensExtension["clusterPages"] = [
     {
       id: "external-secrets",

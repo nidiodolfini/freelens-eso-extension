@@ -1,6 +1,10 @@
 import { Renderer } from "@freelensapp/extensions";
 import * as MobxReact from "mobx-react";
-import { ExternalSecret, type ExternalSecretApi, externalSecretStore } from "../api/externalsecret/externalsecret-v1";
+import {
+  ExternalSecret,
+  type ExternalSecretApi,
+  getExternalSecretStore,
+} from "../api/externalsecret/externalsecret-v1";
 import styles from "./eso-pages.module.scss";
 import stylesInline from "./eso-pages.module.scss?inline";
 
@@ -40,7 +44,7 @@ const renderTableHeader: { title: string; sortBy: keyof typeof sortingCallbacks;
 
 // The columns mirror `kubectl get es`: STORETYPE, STORE, REFRESH INTERVAL, STATUS, READY, LAST SYNC.
 export const ExternalSecretsPage = observer(() => {
-  const store = externalSecretStore;
+  const store = getExternalSecretStore();
 
   return (
     <>

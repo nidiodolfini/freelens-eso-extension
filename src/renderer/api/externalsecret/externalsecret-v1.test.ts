@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { ExternalSecret } from "./externalsecret-v1";
+import { Renderer } from "@freelensapp/extensions";
+import { describe, expect, it, vi } from "vitest";
+import { ExternalSecret, getExternalSecretStore } from "./externalsecret-v1";
 
 // `@freelensapp/extensions` is stubbed for tests (see `test/freelens-extensions.ts`),
 // which lets us construct a real `ExternalSecret` instance from plain resource data.
@@ -164,5 +165,23 @@ describe("ExternalSecret (v1)", () => {
     it("defaults to the name of the ExternalSecret", () => {
       expect(ExternalSecret.getTargetName(buildExternalSecret({}))).toBe("hello-world");
     });
+  });
+});
+
+// The root frame loads the renderer entry as well, and a KubeApi can only be
+// built in a cluster frame, so the store is built by the first call of the
+// getter, not when the module loads.
+describe("getExternalSecretStore", () => {
+  it("builds and registers the store on the first call only", () => {
+    const registerStore = vi.mocked(Renderer.K8sApi.apiManager.registerStore);
+    expect(registerStore).not.toHaveBeenCalled();
+
+    const store = getExternalSecretStore();
+
+    expect(registerStore).toHaveBeenCalledTimes(1);
+    expect(registerStore).toHaveBeenCalledWith(store);
+    expect(store.api.apiBase).toBe(ExternalSecret.apiBase);
+    expect(getExternalSecretStore()).toBe(store);
+    expect(registerStore).toHaveBeenCalledTimes(1);
   });
 });

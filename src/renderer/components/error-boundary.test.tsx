@@ -3,7 +3,7 @@
 import { Common, type Renderer } from "@freelensapp/extensions";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ExternalSecret, externalSecretStore } from "../api/externalsecret/externalsecret-v1";
+import { ExternalSecret, getExternalSecretStore } from "../api/externalsecret/externalsecret-v1";
 import { ExternalSecretsPage } from "../pages/external-secrets-page";
 import {
   ErrorBoundary,
@@ -135,7 +135,7 @@ describe("the registration wrappers", () => {
     });
     // The page reads its items from the exported store, which the stub keeps
     // as a plain array.
-    externalSecretStore.items.push(object);
+    getExternalSecretStore().items.push(object);
     vi.spyOn(ExternalSecret, "getStatusText").mockImplementation(() => {
       throw new Error("no status field");
     });

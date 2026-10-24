@@ -51,6 +51,11 @@ class KubeApi {
 // As the host's store: keeps its items in an array and knows its api.
 class KubeObjectStore {
   items: unknown[] = [];
+  api: unknown;
+
+  constructor(api?: unknown) {
+    this.api = api;
+  }
 
   async patch(_item: unknown, _patch: unknown, _strategy?: unknown): Promise<unknown> {
     return undefined;

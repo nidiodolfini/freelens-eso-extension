@@ -1,6 +1,6 @@
 import { Renderer } from "@freelensapp/extensions";
 import * as MobxReact from "mobx-react";
-import { SecretStore, type SecretStoreApi, secretStoreStore } from "../api/secretstore/secretstore-v1";
+import { getSecretStoreStore, SecretStore, type SecretStoreApi } from "../api/secretstore/secretstore-v1";
 import styles from "./eso-pages.module.scss";
 import stylesInline from "./eso-pages.module.scss?inline";
 
@@ -36,7 +36,7 @@ const renderTableHeader: { title: string; sortBy: keyof typeof sortingCallbacks;
 
 // The columns mirror `kubectl get ss`: STATUS, CAPABILITIES, READY.
 export const SecretStoresPage = observer(() => {
-  const store = secretStoreStore;
+  const store = getSecretStoreStore();
 
   return (
     <>

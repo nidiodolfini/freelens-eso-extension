@@ -55,9 +55,10 @@ pnpm clean:all        # out/, node_modules/, *.tgz and the generated *.d.scss.ts
 ```text
 src/
   main/index.ts                      # Main entry (Main.LensExtension), stateless
-  renderer/index.tsx                 # Renderer entry: store registration, pages, details, menu item
+  renderer/index.tsx                 # Renderer entry: pages, details panels, menu item
   renderer/api/types.ts              # ESO spec and status types
   renderer/api/store-helpers.ts      # Condition helpers shared by the models and the details panels
+  renderer/api/lazy-store.ts         # lazyStore: a store built and registered on first use, in a cluster frame
   renderer/api/<kind>/<kind>-v1.ts   # Model, KubeApi and KubeObjectStore of a kind, with its tests
   renderer/pages/                    # One list page per kind, and their CSS module
   renderer/details/                  # ExternalSecretDetails, and StoreDetails for both store kinds
@@ -127,18 +128,22 @@ export class SecretStore extends Renderer.K8sApi.KubeObject<
 }
 
 export class SecretStoreApi extends Renderer.K8sApi.KubeApi<SecretStore> {}
-export const secretStoreApi = new SecretStoreApi({ objectConstructor: SecretStore, autoRegister: false });
+export class SecretStoreStore extends Renderer.K8sApi.KubeObjectStore<SecretStore, SecretStoreApi> {}
 
-export class SecretStoreStore extends Renderer.K8sApi.KubeObjectStore<SecretStore> {
-  readonly api = secretStoreApi;
-}
-export const secretStoreStore = new SecretStoreStore();
+export const getSecretStoreStore = lazyStore(
+  () => new SecretStoreStore(new SecretStoreApi({ objectConstructor: SecretStore, autoRegister: false })),
+);
 ```
 
-Each model file instantiates its `KubeApi` with `autoRegister: false` and its
-`KubeObjectStore`, and `onActivate` of the renderer entry registers the store
-with `Renderer.K8sApi.apiManager.registerStore`. The pages, the details panels
-and the menu item use the store instance directly.
+Each model file exports a getter made by `lazyStore`
+(`src/renderer/api/lazy-store.ts`), such as `getExternalSecretStore()`. The
+first call builds the kind's `KubeApi`, with `autoRegister: false`, and its
+`KubeObjectStore`, and registers the store with
+`Renderer.K8sApi.apiManager.registerStore`; later calls return the same store.
+The pages and the menu item call the getter while they render, which happens
+in a cluster frame only. Nothing is built when a module loads: a `KubeApi` can
+only be built in a cluster frame, and the root frame loads the renderer entry
+too ("Rules That Fail Silently").
 
 `createAvailableVersionPage` decides whether a kind is served with
 `apiManager.getStore(kubeObjectClass.apiBase)`, which the host resolves only
@@ -170,7 +175,7 @@ has the mapping and the sources), not from memory:
    copy of the newest version's files; the diff of the Go types between the two
    releases says what changes.
 2. **The model**, `src/renderer/api/<kind>/<kind>-<version>.ts`, with its
-   `KubeApi` and `KubeObjectStore`, and its `registerStore` in `onActivate`.
+   `KubeApi`, its `KubeObjectStore` and its `lazyStore` getter.
 3. **The list page** in `src/renderer/pages/`, passed through
    `createAvailableVersionPage` (newest version first when a kind has more than
    one) and registered in `clusterPages` and `clusterPageMenus`.
@@ -256,6 +261,14 @@ or not visibly at all.
 - **No instance method on a KubeObject subclass.** The objects from the host do
   not have it, and the call throws. Nothing checks it ("CRD KubeObject
   Pattern").
+- **No `KubeApi` built when a module loads.** The host asserts `request MUST
+  be provided if not in a cluster page frame context` when a `KubeApi` is
+  built outside a cluster frame, and the root frame loads the renderer entry
+  too: built at module level, it fails the whole renderer there, and the host
+  logs `can't load renderer` for the extension. Build it in the `lazyStore`
+  getter, called from a page or a menu item ("CRD KubeObject Pattern").
+  `src/renderer/api/externalsecret/externalsecret-v1.test.ts` checks that
+  importing the model registers nothing.
 - **A component that chooses what to render through `apiManager.getStore()` is
   an `observer`.** Otherwise a page opened before the cluster frame has loaded
   the CRDs shows the kind as not installed until the user navigates away and
