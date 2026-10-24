@@ -15,7 +15,7 @@ export function ErrorPage({ error, children }: ErrorPageProps) {
     <>
       <style>{stylesInline}</style>
       <div className={styles.errorPage}>
-        {error ? <p className={styles.errorMessage}>{String(error)}</p> : <></>}
+        {error ? <p className={styles.errorMessage}>{String(error)}</p> : null}
         {children}
       </div>
     </>
