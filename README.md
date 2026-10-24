@@ -1,8 +1,9 @@
 # freelens-eso-extension
 
-Extensão Freelens para o **External Secrets Operator (ESO)**. Projeto criado a partir do
-template oficial [`freelensapp/freelens-example-extension`](https://github.com/freelensapp/freelens-example-extension)
-(Freelens >= 2.0.0, extension API v2).
+Extensão Freelens para o **External Secrets Operator (ESO)**. Portado da extension API v2
+para a **API v1 (Freelens 1.x, `engines.freelens: ^1.8.0`)**, seguindo o layout de build da
+extensão oficial [`freelensapp/freelens-fluxcd-extension`](https://github.com/freelensapp/freelens-fluxcd-extension)
+v5.3.1 (electron-vite, `out/`, bundles CommonJS).
 
 Repositório: <https://github.com/nidiodolfini/freelens-eso-extension> · Pacote npm:
 [`freelens-eso-extension`](https://www.npmjs.com/package/freelens-eso-extension)
@@ -31,7 +32,7 @@ annotation muda. SecretStore e ClusterSecretStore não têm essa ação.
 
 ## Requisitos
 
-- Freelens 2.x (extension API v2).
+- Freelens 1.10.x (extension API v1; `engines.freelens` exige `^1.8.0`).
 - Um cluster com o External Secrets Operator instalado (`external-secrets.io/v1`).
 
 ## Pré-requisitos deste ambiente
@@ -57,23 +58,24 @@ node .tools\patch-vite.mjs                  # patch idempotente do vite p/ o san
 Caches ficam dentro do workspace: `.pnpm-store`, `.pnpm-cache`, `.pnpm-state`,
 `.npm-cache` (ver `.npmrc` e `pnpm-workspace.yaml`).
 
-> O patch aplica duas correções de ambiente em `node_modules/vite` (o sandbox DSH
-> bloqueia spawn com stdio em pipe): `net use` do realpath (try/catch) e uso do
-> compilador Sass JS puro (`sass`) em vez do `sass-embedded`, que spawna o binário
-> Dart Sass. Rode o script novamente após qualquer `pnpm install` que recrie o vite.
+> O patch aplica três correções de ambiente (o sandbox DSH bloqueia spawn com
+> stdio em pipe): o `net use` do realpath (try/catch), o uso do compilador Sass
+> JS puro (`sass`) em vez do `sass-embedded` (que spawna o binário Dart Sass) e,
+> no electron-vite, a transpilação do config por TypeScript in-process em vez do
+> serviço esbuild (que spawna um binário). Rode o script novamente após qualquer
+> `pnpm install` que recrie as dependências.
 
 ## Comandos de desenvolvimento
 
 ```powershell
-pnpm type:check     # todos os programas (sources, tests, tooling, environments)
+pnpm type:check     # tsc -p tsconfig.json (um programa único, como no fluxcd)
 pnpm test:unit      # vitest
-pnpm build          # vite build (renderer) + vite build --mode main → dist/
-pnpm dev            # watch do renderer e do main (instalação por diretório)
+pnpm build          # electron-vite build → out/main e out/renderer (CommonJS)
 pnpm biome:fix      # formatação/lint (TypeScript, TSX, JSON, CSS, HTML)
 pnpm biome:check
 pnpm knip:check     # arquivos e dependências não usados (requer download via pnpm dlx)
 pnpm pack:dev       # bump prerelease + build + .tgz para instalar no Freelens
-pnpm clean          # remove dist/
+pnpm clean          # remove out/
 ```
 
 > `biome:*` e `knip:*` rodam via `pnpm dlx`, cujo cache padrão fica em
@@ -125,23 +127,26 @@ condition `Ready=SecretSynced` depois do primeiro sync (o provider `fake` serve 
 ## Estrutura
 
 ```text
+electron.vite.config.js                         # config do electron-vite (main + renderer em preload)
+build/global-externals.js                       # plugin: react/mobx/... → globals do host (v1)
 src/
-  main/index.ts                                    # entry main (sem estado)
-  renderer/index.tsx                               # registros: 3 páginas, details, menu
-  renderer/api/types.ts                            # tipos do spec/status do ESO
-  renderer/api/store-helpers.ts                    # helpers puros de status dos stores
-  renderer/api/externalsecret/externalsecret-v1.ts # modelo ExternalSecret (+ Api/Store, teste)
-  renderer/api/secretstore/secretstore-v1.ts       # modelo SecretStore (+ Api/Store, teste)
-  renderer/api/clustersecretstore/clustersecretstore-v1.ts # modelo ClusterSecretStore (+ Api/Store, teste)
-  renderer/pages/                                  # 3 páginas + CSS module
-  renderer/details/                                # 3 painéis de detalhes
-  renderer/menus/                                  # Force Sync (ExternalSecret)
-  renderer/icons/                                  # ícone cadeado + seta de refresh
-  renderer/components/                             # createAvailableVersionPage, error boundaries
-examples/eso/                                      # objetos de teste (kubectl apply -f)
+  main/index.ts                                 # entry main (sem estado)
+  renderer/index.tsx                            # registros v1: apiManager, 3 páginas, details, menu
+  renderer/api/types.ts                         # tipos do spec/status do ESO
+  renderer/api/store-helpers.ts                 # helpers puros de status dos stores
+  renderer/api/externalsecret/externalsecret-v1.ts # modelo ExternalSecret (+ Api/Store consts, teste)
+  renderer/api/secretstore/secretstore-v1.ts       # modelo SecretStore (+ Api/Store consts, teste)
+  renderer/api/clustersecretstore/clustersecretstore-v1.ts # modelo ClusterSecretStore (+ Api/Store consts, teste)
+  renderer/pages/                               # 3 páginas + CSS module
+  renderer/details/                             # 3 painéis de detalhes
+  renderer/menus/                               # Force Sync (ExternalSecret)
+  renderer/icons/                               # ícone cadeado + seta de refresh
+  renderer/components/                          # createAvailableVersionPage, error boundaries
+examples/eso/                                   # objetos de teste (kubectl apply -f)
 ```
 
-Build em `dist/main.js`, `dist/renderer.js` e `dist/renderer.css`.
+Build em `out/main/index.js` e `out/renderer/index.js` (bundles CommonJS, como as extensões
+Freelens 1.x); `package.json` aponta `main`/`renderer` para esses arquivos.
 
 ## Versões da API
 
@@ -153,11 +158,20 @@ liste as duas em `createAvailableVersionPage`, da mais nova para a mais antiga.
 ## Desvios do template
 
 - `packageManager` = `pnpm@11.28.6` (pnpm 12 exige lock em `%LOCALAPPDATA%`, negado no sandbox).
-- `nodeLinker: hoisted` em `pnpm-workspace.yaml` (resolução do pacote nativo do `typescript@7` no Windows).
-- `build/vite-plugin-standard-decorators.mjs` usa Babel (`@babel/core`,
-  `@babel/preset-typescript`, `@babel/plugin-proposal-decorators` 2023-11) como
-  fallback do esbuild (que spawna binário com pipe, bloqueado no sandbox).
-- `sass@1.105.2` adicionado como devDependency (usado pelo patch acima).
-- Sem preferências/ExtensionStore: `src/common/store/` não existe e o main é uma classe mínima.
-- Sem testes de integração: `integration/`, `vitest.integration.config.ts` e o workflow
-  `integration-tests.yaml` foram removidos, junto com a devDependency `playwright`.
+- `nodeLinker: hoisted` em `pnpm-workspace.yaml`.
+- O build usa electron-vite (`electron.vite.config.js` + `build/global-externals.js`, espelhando
+  o fluxcd v5.3.1): `react`/`react-dom`/`mobx`/`mobx-react`/`@freelensapp/extensions` são
+  fornecidos pelo host v1 via `global.*` e ficam externos; main e renderer saem como CommonJS.
+- A seção `preload` do electron-vite compila o renderer (sem HTML de entrada) para `out/renderer`.
+- CSS dos módulos entra nas páginas via `?inline` + `<style>` (padrão do fluxcd v1), porque o
+  build com `preserveModules` não garante um único `renderer.css` carregado pelo host.
+- O config do electron-vite **não** usa `@vitejs/plugin-react` (ao contrário do fluxcd): o
+  carregador CommonJS do config não consegue `require()` o grafo ESM do plugin (tem
+  top-level `await`) e o sandbox não executa o bundler esbuild do electron-vite; o JSX do
+  renderer usa o transform automático nativo do Vite (`react/jsx-runtime` → global do host).
+  O plugin permanece como devDependency (espelho do fluxcd) e o knip o ignora.
+- `test:unit` usa `--pool=threads` porque o pool forks do vitest spawna processos filhos,
+  bloqueados no sandbox.
+- `knip:check` usa `&&` em vez do padrão regex `pnpm "/^...$/"` (sintaxe de aspas quebra no
+  `cmd.exe` do Windows).
+- Sem preferências/ExtensionStore e sem testes de integração (o main é uma classe mínima).

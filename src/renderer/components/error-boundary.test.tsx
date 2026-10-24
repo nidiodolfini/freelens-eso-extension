@@ -3,7 +3,7 @@
 import { Common, type Renderer } from "@freelensapp/extensions";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ExternalSecret } from "../api/externalsecret/externalsecret-v1";
+import { ExternalSecret, externalSecretStore } from "../api/externalsecret/externalsecret-v1";
 import { ExternalSecretsPage } from "../pages/external-secrets-page";
 import {
   ErrorBoundary,
@@ -26,12 +26,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const Throws = ({ message = "boom" }: { message?: string }): React.JSX.Element => {
+const Throws = ({ message = "boom" }: { message?: string }): JSX.Element => {
   throw new Error(message);
 };
 
 // A child that throws only for some objects, as a details panel does for an object without a field it reads.
-const ThrowsFor = ({ object }: { object: { broken: boolean } }) => {
+const ThrowsFor = ({ object }: Renderer.Component.KubeObjectDetailsProps<any>) => {
   if (object.broken) throw new Error("broken object");
   return <p>fine object</p>;
 };
@@ -133,9 +133,9 @@ describe("the registration wrappers", () => {
       metadata: { name: "hello-world", namespace: "default", uid: "1", resourceVersion: "1", selfLink: "" },
       spec: {},
     });
-    vi.spyOn(ExternalSecret, "getStore").mockReturnValue({
-      items: [object],
-    } as unknown as Renderer.K8sApi.KubeObjectStore<ExternalSecret, Renderer.K8sApi.KubeApi<ExternalSecret>>);
+    // The page reads its items from the exported store, which the stub keeps
+    // as a plain array.
+    externalSecretStore.items.push(object);
     vi.spyOn(ExternalSecret, "getStatusText").mockImplementation(() => {
       throw new Error("no status field");
     });

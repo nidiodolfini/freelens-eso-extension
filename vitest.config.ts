@@ -1,17 +1,11 @@
 import { fileURLToPath } from "node:url";
-import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
-import { standardDecorators } from "./build/vite-plugin-standard-decorators.mjs";
 
+// No @vitejs/plugin-react here: Vite's built-in transform already handles the
+// JSX of the component tests with the automatic runtime (the same transform
+// the electron-vite build uses for the renderer), and loading the plugin makes
+// knip fail to read this config.
 export default defineConfig({
-  plugins: [
-    // Lowers the standard decorators (`@observable accessor`) before Oxc, as in
-    // the build; Oxc passes them through and Node cannot run them.
-    standardDecorators(),
-    // Transforms JSX/TSX the same way the build does, so component tests
-    // (e.g. `error-page.test.tsx`) render correctly.
-    react(),
-  ],
   test: {
     // Default to a Node environment. Tests that render React components opt into
     // jsdom per-file with a `// @vitest-environment jsdom` comment at the top.
@@ -21,18 +15,14 @@ export default defineConfig({
     // React Testing Library registers its automatic `afterEach(cleanup)` only
     // when `afterEach` exists as a global.
     globals: true,
-    exclude: ["node_modules/**", "dist/**"],
-    // The same files that `src/tsconfig.json` type-checks and Biome lets
-    // import "vitest".
-    include: ["src/**/*.test.{ts,tsx}"],
+    exclude: ["node_modules/**", "out/**"],
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
     passWithNoTests: true,
     alias: {
-      // The host provides `@freelensapp/extensions` on
-      // `globalThis.FreelensExtensionApi`, and the package is a shim that reads
-      // that global when it is imported, so the real package throws in a test.
-      // Tests import a small stub instead - see `test/freelens-extensions.ts`.
-      // The other host modules (react, mobx, ...) resolve to the
-      // devDependencies, which are pinned to the host's versions.
+      // The host provides `@freelensapp/extensions` as a global, and the real
+      // package is the Freelens host renderer bundle which needs a browser, so
+      // it cannot be imported under Node. Tests import a small stub instead -
+      // see `test/freelens-extensions.ts`.
       "@freelensapp/extensions": fileURLToPath(new URL("./test/freelens-extensions.ts", import.meta.url)),
     },
   },

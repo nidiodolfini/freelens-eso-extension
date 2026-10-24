@@ -1,7 +1,12 @@
 import { Renderer } from "@freelensapp/extensions";
 import * as MobxReact from "mobx-react";
-import { ClusterSecretStore, type ClusterSecretStoreApi } from "../api/clustersecretstore/clustersecretstore-v1";
+import {
+  ClusterSecretStore,
+  type ClusterSecretStoreApi,
+  clusterSecretStoreStore,
+} from "../api/clustersecretstore/clustersecretstore-v1";
 import styles from "./eso-pages.module.scss";
+import stylesInline from "./eso-pages.module.scss?inline";
 
 const { observer } = MobxReact;
 
@@ -33,25 +38,28 @@ const renderTableHeader: { title: string; sortBy: keyof typeof sortingCallbacks;
 
 // The columns mirror `kubectl get css`: STATUS, CAPABILITIES, READY.
 export const ClusterSecretStoresPage = observer(() => {
-  const store = KubeObject.getStore<KubeObject>();
+  const store = clusterSecretStoreStore;
 
   return (
-    <KubeObjectListLayout<KubeObject, KubeObjectApi>
-      tableId={`${KubeObject.crd.plural}Table`}
-      className={styles.page}
-      store={store}
-      sortingCallbacks={sortingCallbacks}
-      searchFilters={[(object: KubeObject) => object.getSearchFields()]}
-      renderHeaderTitle={KubeObject.crd.title}
-      renderTableHeader={renderTableHeader}
-      renderTableContents={(object: KubeObject) => [
-        <WithTooltip>{object.getName()}</WithTooltip>,
-        <WithTooltip>{KubeObject.getProviderName(object) ?? "-"}</WithTooltip>,
-        <Badge label={KubeObject.getStatusText(object)} className={KubeObject.getStatusClass(object)} />,
-        KubeObject.getCapabilities(object) ?? "-",
-        <BadgeBoolean value={KubeObject.getReady(object)} />,
-        <KubeObjectAge object={object} key="age" />,
-      ]}
-    />
+    <>
+      <style>{stylesInline}</style>
+      <KubeObjectListLayout<KubeObject, KubeObjectApi>
+        tableId={`${KubeObject.crd.plural}Table`}
+        className={styles.page}
+        store={store}
+        sortingCallbacks={sortingCallbacks}
+        searchFilters={[(object: KubeObject) => object.getSearchFields()]}
+        renderHeaderTitle={KubeObject.crd.title}
+        renderTableHeader={renderTableHeader}
+        renderTableContents={(object: KubeObject) => [
+          <WithTooltip>{object.getName()}</WithTooltip>,
+          <WithTooltip>{KubeObject.getProviderName(object) ?? "-"}</WithTooltip>,
+          <Badge label={KubeObject.getStatusText(object)} className={KubeObject.getStatusClass(object)} />,
+          KubeObject.getCapabilities(object) ?? "-",
+          <BadgeBoolean value={KubeObject.getReady(object)} />,
+          <KubeObjectAge object={object} key="age" />,
+        ]}
+      />
+    </>
   );
 });

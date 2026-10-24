@@ -4,14 +4,11 @@ import type { EsoCondition, EsoKubeObjectCRD, ExternalSecretSpec, ExternalSecret
 
 export type { ExternalSecretSpec, ExternalSecretStatus };
 
-export class ExternalSecret extends Renderer.K8sApi.LensExtensionKubeObject<
+export class ExternalSecret extends Renderer.K8sApi.KubeObject<
   Renderer.K8sApi.KubeObjectMetadata,
   ExternalSecretStatus,
   ExternalSecretSpec
 > {
-  declare kind: "ExternalSecret";
-  declare apiVersion: "external-secrets.io/v1";
-
   static readonly kind = "ExternalSecret";
   static readonly namespaced = true;
   static readonly apiBase = "/apis/external-secrets.io/v1/externalsecrets";
@@ -108,4 +105,18 @@ export class ExternalSecret extends Renderer.K8sApi.LensExtensionKubeObject<
 }
 
 export class ExternalSecretApi extends Renderer.K8sApi.KubeApi<ExternalSecret> {}
-export class ExternalSecretStore extends Renderer.K8sApi.KubeObjectStore<ExternalSecret, ExternalSecretApi> {}
+
+// `autoRegister: false` keeps the API out of the cluster's apiManager: the
+// "Not Available" page of `createAvailableVersionPage` relies on the apiBase
+// being found only when the cluster actually serves the CRD. The store below
+// is registered in the extension's `onActivate` instead.
+export const externalSecretApi = new ExternalSecretApi({
+  objectConstructor: ExternalSecret,
+  autoRegister: false,
+});
+
+export class ExternalSecretStore extends Renderer.K8sApi.KubeObjectStore<ExternalSecret> {
+  readonly api = externalSecretApi;
+}
+
+export const externalSecretStore = new ExternalSecretStore();

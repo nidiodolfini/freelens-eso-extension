@@ -4,9 +4,9 @@
  */
 
 import { Renderer } from "@freelensapp/extensions";
-import { ClusterSecretStore } from "./api/clustersecretstore/clustersecretstore-v1";
-import { ExternalSecret } from "./api/externalsecret/externalsecret-v1";
-import { SecretStore } from "./api/secretstore/secretstore-v1";
+import { ClusterSecretStore, clusterSecretStoreStore } from "./api/clustersecretstore/clustersecretstore-v1";
+import { ExternalSecret, externalSecretStore } from "./api/externalsecret/externalsecret-v1";
+import { SecretStore, secretStoreStore } from "./api/secretstore/secretstore-v1";
 import { createAvailableVersionPage } from "./components/available-version";
 import {
   withDetailsErrorBoundary,
@@ -17,7 +17,10 @@ import { ClusterSecretStoreDetails } from "./details/cluster-secret-store-detail
 import { ExternalSecretDetails } from "./details/external-secret-details";
 import { SecretStoreDetails } from "./details/secret-store-details";
 import { ExternalSecretsIcon } from "./icons";
-import { ExternalSecretForceSyncMenuItem } from "./menus/external-secret-force-sync-menu-item";
+import {
+  ExternalSecretForceSyncMenuItem,
+  type ExternalSecretForceSyncMenuItemProps,
+} from "./menus/external-secret-force-sync-menu-item";
 import { ClusterSecretStoresPage } from "./pages/cluster-secret-stores-page";
 import { ExternalSecretsPage } from "./pages/external-secrets-page";
 import { SecretStoresPage } from "./pages/secret-stores-page";
@@ -42,6 +45,16 @@ const ClusterSecretStoresPageAvailable = createAvailableVersionPage("Cluster Sec
 // replace the whole cluster view. Each registration field is mapped through its wrapper, so an entry added to it is
 // wrapped too.
 export default class EsoRenderer extends Renderer.LensExtension {
+  onActivate() {
+    // The v1 API registers the extension's stores with the cluster's
+    // apiManager; `apiManager.getStore(apiBase)` resolves them when the
+    // cluster serves the CRD, which is also what shows the pages' "Not
+    // Available" state before that.
+    Renderer.K8sApi.apiManager.registerStore(externalSecretStore);
+    Renderer.K8sApi.apiManager.registerStore(secretStoreStore);
+    Renderer.K8sApi.apiManager.registerStore(clusterSecretStoreStore);
+  }
+
   clusterPages: Renderer.LensExtension["clusterPages"] = [
     {
       id: "external-secrets",
@@ -65,7 +78,7 @@ export default class EsoRenderer extends Renderer.LensExtension {
 
   clusterPageMenus = [
     {
-      id: "external-secrets",
+      id: "eso",
       title: "External Secrets",
       target: { pageId: "external-secrets" },
       components: {
@@ -73,43 +86,66 @@ export default class EsoRenderer extends Renderer.LensExtension {
       },
     },
     {
+      id: "external-secrets",
+      parentId: "eso",
+      title: ExternalSecret.crd.title,
+      target: { pageId: "external-secrets" },
+      components: {},
+    },
+    {
       id: "secret-stores",
-      title: "Secret Stores",
+      parentId: "eso",
+      title: SecretStore.crd.title,
       target: { pageId: "secret-stores" },
-      components: {
-        Icon: ExternalSecretsIcon,
-      },
+      components: {},
     },
     {
       id: "cluster-secret-stores",
-      title: "Cluster Secret Stores",
+      parentId: "eso",
+      title: ClusterSecretStore.crd.title,
       target: { pageId: "cluster-secret-stores" },
-      components: {
-        Icon: ExternalSecretsIcon,
-      },
+      components: {},
     },
   ];
 
   kubeObjectDetailItems: Renderer.LensExtension["kubeObjectDetailItems"] = [
-    Renderer.K8sApi.detailsFor(ExternalSecret, {
+    {
+      kind: ExternalSecret.kind,
+      apiVersions: ExternalSecret.crd.apiVersions,
       priority: 10,
-      Details: ExternalSecretDetails,
-    }),
-    Renderer.K8sApi.detailsFor(SecretStore, {
+      components: {
+        Details: (props: Renderer.Component.KubeObjectDetailsProps<ExternalSecret>) => (
+          <ExternalSecretDetails {...props} />
+        ),
+      },
+    },
+    {
+      kind: SecretStore.kind,
+      apiVersions: SecretStore.crd.apiVersions,
       priority: 10,
-      Details: SecretStoreDetails,
-    }),
-    Renderer.K8sApi.detailsFor(ClusterSecretStore, {
+      components: {
+        Details: (props: Renderer.Component.KubeObjectDetailsProps<SecretStore>) => <SecretStoreDetails {...props} />,
+      },
+    },
+    {
+      kind: ClusterSecretStore.kind,
+      apiVersions: ClusterSecretStore.crd.apiVersions,
       priority: 10,
-      Details: ClusterSecretStoreDetails,
-    }),
+      components: {
+        Details: (props: Renderer.Component.KubeObjectDetailsProps<ClusterSecretStore>) => (
+          <ClusterSecretStoreDetails {...props} />
+        ),
+      },
+    },
   ].map((registration) => withDetailsErrorBoundary(this, registration));
 
-  customResources = [ExternalSecret, SecretStore, ClusterSecretStore];
-
   kubeObjectMenuItems: Renderer.LensExtension["kubeObjectMenuItems"] = [
-    Renderer.K8sApi.menuItemFor(ExternalSecret, {
-      MenuItem: ExternalSecretForceSyncMenuItem,
-    }),
+    {
+      kind: ExternalSecret.kind,
+      apiVersions: ExternalSecret.crd.apiVersions,
+      components: {
+        MenuItem: (props: ExternalSecretForceSyncMenuItemProps) => <ExternalSecretForceSyncMenuItem {...props} />,
+      },
+    },
   ].map((registration) => withMenuItemErrorBoundary(this, registration));
 }

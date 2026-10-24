@@ -18,14 +18,11 @@ import type {
 
 export type { SecretStoreSpec, SecretStoreStatus };
 
-export class SecretStore extends Renderer.K8sApi.LensExtensionKubeObject<
+export class SecretStore extends Renderer.K8sApi.KubeObject<
   Renderer.K8sApi.KubeObjectMetadata,
   SecretStoreStatus,
   SecretStoreSpec
 > {
-  declare kind: "SecretStore";
-  declare apiVersion: "external-secrets.io/v1";
-
   static readonly kind = "SecretStore";
   static readonly namespaced = true;
   static readonly apiBase = "/apis/external-secrets.io/v1/secretstores";
@@ -75,4 +72,18 @@ export class SecretStore extends Renderer.K8sApi.LensExtensionKubeObject<
 }
 
 export class SecretStoreApi extends Renderer.K8sApi.KubeApi<SecretStore> {}
-export class SecretStoreStore extends Renderer.K8sApi.KubeObjectStore<SecretStore, SecretStoreApi> {}
+
+// `autoRegister: false` keeps the API out of the cluster's apiManager: the
+// "Not Available" page of `createAvailableVersionPage` relies on the apiBase
+// being found only when the cluster actually serves the CRD. The store below
+// is registered in the extension's `onActivate` instead.
+export const secretStoreApi = new SecretStoreApi({
+  objectConstructor: SecretStore,
+  autoRegister: false,
+});
+
+export class SecretStoreStore extends Renderer.K8sApi.KubeObjectStore<SecretStore> {
+  readonly api = secretStoreApi;
+}
+
+export const secretStoreStore = new SecretStoreStore();

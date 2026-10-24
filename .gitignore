@@ -15,7 +15,7 @@
 !*.d.css.ts
 !*.d.scss.ts
 
-/dist/
+/out/
 
 /freelens/
 

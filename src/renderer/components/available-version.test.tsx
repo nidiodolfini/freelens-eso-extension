@@ -9,13 +9,18 @@ import { type AvailableVersionPageProps, createAvailableVersionPage } from "./av
 // A minimal stub extension - only `name` is read by the pages below.
 const extension = { name: "example-extension" } as Renderer.LensExtension;
 
-// The stub's `getStore()` throws, as the host's does for a version that is not
-// served. A test marks a version as served by spying on `getStore` of its class.
-class ExampleV1alpha2 extends Renderer.K8sApi.LensExtensionKubeObject {}
-class ExampleV1alpha1 extends Renderer.K8sApi.LensExtensionKubeObject {}
+// The stub's `apiManager.getStore()` returns undefined, as the host's does for
+// an apiBase the cluster does not serve. A test marks a version as served by
+// spying on it.
+class ExampleV1alpha2 extends Renderer.K8sApi.KubeObject {
+  static readonly apiBase = "/apis/example/v1alpha2/examples";
+}
+class ExampleV1alpha1 extends Renderer.K8sApi.KubeObject {
+  static readonly apiBase = "/apis/example/v1alpha1/examples";
+}
 
-function serve(kubeObjectClass: typeof Renderer.K8sApi.LensExtensionKubeObject<any, any, any>) {
-  vi.spyOn(kubeObjectClass, "getStore").mockReturnValue({} as Renderer.K8sApi.KubeObjectStore<any, any, any>);
+function serve() {
+  vi.spyOn(Renderer.K8sApi.apiManager, "getStore").mockReturnValue({} as Renderer.K8sApi.KubeObjectStore);
 }
 
 const ExamplesPage = createAvailableVersionPage<AvailableVersionPageProps>("Examples", [
@@ -38,8 +43,7 @@ afterEach(() => {
 
 describe("createAvailableVersionPage", () => {
   it("renders the first version that has a store, with the extension", () => {
-    serve(ExampleV1alpha2);
-    serve(ExampleV1alpha1);
+    serve();
 
     render(<ExamplesPage extension={extension} />);
 
@@ -48,7 +52,10 @@ describe("createAvailableVersionPage", () => {
   });
 
   it("falls back to a later version when an earlier one has no store", () => {
-    serve(ExampleV1alpha1);
+    const getStore = vi.spyOn(Renderer.K8sApi.apiManager, "getStore");
+    getStore.mockImplementation((apiBase) =>
+      apiBase === "/apis/example/v1alpha1/examples" ? ({} as Renderer.K8sApi.KubeObjectStore) : undefined,
+    );
 
     render(<ExamplesPage extension={extension} />);
 
@@ -56,6 +63,8 @@ describe("createAvailableVersionPage", () => {
   });
 
   it("renders the not available page with the versions it tried when no version has a store", () => {
+    vi.spyOn(Renderer.K8sApi.apiManager, "getStore").mockReturnValue(undefined);
+
     render(<ExamplesPage extension={extension} />);
 
     expect(screen.getByText("Examples Not Available")).toBeDefined();
@@ -66,11 +75,11 @@ describe("createAvailableVersionPage", () => {
     // The host's `getStore()` reads its observable API registry. The spy reads an
     // observable in its place, so that serving the version is a change the page sees.
     const served = observable.box(false);
-    vi.spyOn(ExampleV1alpha2, "getStore").mockImplementation(() => {
+    vi.spyOn(Renderer.K8sApi.apiManager, "getStore").mockImplementation(() => {
       if (!served.get()) {
-        throw new Error("no API for ExampleV1alpha2");
+        return undefined;
       }
-      return {} as Renderer.K8sApi.KubeObjectStore<any, any, any>;
+      return {} as Renderer.K8sApi.KubeObjectStore;
     });
 
     render(<ExamplesPage extension={extension} />);

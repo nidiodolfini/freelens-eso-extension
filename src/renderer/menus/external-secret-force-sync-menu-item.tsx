@@ -1,5 +1,5 @@
 import { Common, Renderer } from "@freelensapp/extensions";
-import { ExternalSecret } from "../api/externalsecret/externalsecret-v1";
+import { ExternalSecret, externalSecretStore } from "../api/externalsecret/externalsecret-v1";
 
 const {
   Component: { Icon, MenuItem },
@@ -16,10 +16,8 @@ export type ExternalSecretForceSyncMenuItemProps = Common.Types.KubeObjectMenuIt
 export const ExternalSecretForceSyncMenuItem = ({ object, toolbar }: ExternalSecretForceSyncMenuItemProps) => {
   if (!object) return <></>;
 
-  const store = ExternalSecret.getStore<ExternalSecret>();
-
   const forceSync = async () => {
-    await store.patch(
+    await externalSecretStore.patch(
       object,
       {
         metadata: {
