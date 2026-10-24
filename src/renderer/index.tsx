@@ -13,14 +13,10 @@ import {
   withMenuItemErrorBoundary,
   withPageErrorBoundary,
 } from "./components/error-boundary";
-import { ClusterSecretStoreDetails } from "./details/cluster-secret-store-details";
 import { ExternalSecretDetails } from "./details/external-secret-details";
-import { SecretStoreDetails } from "./details/secret-store-details";
-import { ExternalSecretsIcon } from "./icons";
-import {
-  ExternalSecretForceSyncMenuItem,
-  type ExternalSecretForceSyncMenuItemProps,
-} from "./menus/external-secret-force-sync-menu-item";
+import { StoreDetails } from "./details/store-details";
+import { ExternalSecretsIcon } from "./icons/external-secrets";
+import { ExternalSecretForceSyncMenuItem } from "./menus/external-secret-force-sync-menu-item";
 import { ClusterSecretStoresPage } from "./pages/cluster-secret-stores-page";
 import { ExternalSecretsPage } from "./pages/external-secrets-page";
 import { SecretStoresPage } from "./pages/secret-stores-page";
@@ -76,7 +72,7 @@ export default class EsoRenderer extends Renderer.LensExtension {
     },
   ].map((registration) => withPageErrorBoundary(this, registration));
 
-  clusterPageMenus = [
+  clusterPageMenus: Renderer.LensExtension["clusterPageMenus"] = [
     {
       id: "eso",
       title: "External Secrets",
@@ -108,34 +104,26 @@ export default class EsoRenderer extends Renderer.LensExtension {
     },
   ];
 
+  // The components are registered as they are: their props are typed with the model, and the error boundary wrapper
+  // keeps that type, so a panel or an item written for another kind fails the type check.
   kubeObjectDetailItems: Renderer.LensExtension["kubeObjectDetailItems"] = [
     {
       kind: ExternalSecret.kind,
       apiVersions: ExternalSecret.crd.apiVersions,
       priority: 10,
-      components: {
-        Details: (props: Renderer.Component.KubeObjectDetailsProps<ExternalSecret>) => (
-          <ExternalSecretDetails {...props} />
-        ),
-      },
+      components: { Details: ExternalSecretDetails },
     },
     {
       kind: SecretStore.kind,
       apiVersions: SecretStore.crd.apiVersions,
       priority: 10,
-      components: {
-        Details: (props: Renderer.Component.KubeObjectDetailsProps<SecretStore>) => <SecretStoreDetails {...props} />,
-      },
+      components: { Details: StoreDetails },
     },
     {
       kind: ClusterSecretStore.kind,
       apiVersions: ClusterSecretStore.crd.apiVersions,
       priority: 10,
-      components: {
-        Details: (props: Renderer.Component.KubeObjectDetailsProps<ClusterSecretStore>) => (
-          <ClusterSecretStoreDetails {...props} />
-        ),
-      },
+      components: { Details: StoreDetails },
     },
   ].map((registration) => withDetailsErrorBoundary(this, registration));
 
@@ -143,9 +131,7 @@ export default class EsoRenderer extends Renderer.LensExtension {
     {
       kind: ExternalSecret.kind,
       apiVersions: ExternalSecret.crd.apiVersions,
-      components: {
-        MenuItem: (props: ExternalSecretForceSyncMenuItemProps) => <ExternalSecretForceSyncMenuItem {...props} />,
-      },
+      components: { MenuItem: ExternalSecretForceSyncMenuItem },
     },
   ].map((registration) => withMenuItemErrorBoundary(this, registration));
 }

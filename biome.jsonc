@@ -26,7 +26,15 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/.trunk/**", "!**/build/**", "!**/dist/**", "!**/out/**", "**/build/*.{js,cjs,mjs}"]
+    "includes": [
+      "**",
+      "!**/.trunk/**",
+      "!**/build/**",
+      "!**/dist/**",
+      "!**/out/**",
+      "!**/*.svg",
+      "**/build/*.{js,cjs,mjs}"
+    ]
   },
   "formatter": {
     "attributePosition": "auto",

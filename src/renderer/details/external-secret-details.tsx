@@ -1,6 +1,7 @@
 import { Renderer } from "@freelensapp/extensions";
 import * as MobxReact from "mobx-react";
 import { ExternalSecret } from "../api/externalsecret/externalsecret-v1";
+import { getConditionClass } from "../api/store-helpers";
 
 const { observer } = MobxReact;
 
@@ -9,17 +10,6 @@ const {
 } = Renderer;
 
 export type ExternalSecretDetailsProps = Renderer.Component.KubeObjectDetailsProps<ExternalSecret>;
-
-function conditionClass(status: string): string {
-  switch (status) {
-    case "True":
-      return "success";
-    case "False":
-      return "error";
-    default:
-      return "warning";
-  }
-}
 
 export const ExternalSecretDetails = observer(({ object }: ExternalSecretDetailsProps) => {
   const conditions = object.status?.conditions;
@@ -42,7 +32,7 @@ export const ExternalSecretDetails = observer(({ object }: ExternalSecretDetails
           <Badge
             key={condition.type + index}
             label={condition.reason || condition.type}
-            className={conditionClass(condition.status)}
+            className={getConditionClass(condition.status)}
             tooltip={condition.message}
           />
         ))}
