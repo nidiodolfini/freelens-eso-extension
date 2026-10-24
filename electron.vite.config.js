@@ -93,7 +93,6 @@ export default defineConfig({
         "mobx-react": "global.MobxReact",
         react: "global.React",
         "react-dom": "global.ReactDom",
-        "react-router-dom": "global.ReactRouterDom",
         "react/jsx-runtime": "global.ReactJsxRuntime",
       }),
     ],
