@@ -83,6 +83,7 @@ jobs:
           default_author: github_actions
           message: Automated npm audit
           new_branch: automated/npm-audit
+          fetch: false
           push: origin automated/npm-audit --set-upstream --force
 
       - name: Create pull request
