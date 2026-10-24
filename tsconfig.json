@@ -6,6 +6,7 @@
     "esModuleInterop": true,
     "moduleResolution": "node10",
     "jsx": "react-jsx",
+    "allowArbitraryExtensions": true,
     "types": ["vite/client", "electron-vite/node"]
   }
 }
