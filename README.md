@@ -1,8 +1,11 @@
-# @freelensapp/eso-extension
+# freelens-eso-extension
 
 Extensão Freelens para o **External Secrets Operator (ESO)**. Projeto criado a partir do
 template oficial [`freelensapp/freelens-example-extension`](https://github.com/freelensapp/freelens-example-extension)
 (Freelens >= 2.0.0, extension API v2).
+
+Repositório: <https://github.com/nidiodolfini/freelens-eso-extension> · Pacote npm:
+[`freelens-eso-extension`](https://www.npmjs.com/package/freelens-eso-extension)
 
 ## O que a extensão faz
 
@@ -79,7 +82,26 @@ pnpm clean          # remove dist/
 > O `test:unit` usa `--pool=threads` porque o pool forks do vitest spawna processos filhos,
 > bloqueados no sandbox.
 
-## Instalar no Freelens
+## Instalar pelo nome (npm)
+
+Depois de publicado, o Freelens instala a extensão pelo nome, como as extensões oficiais:
+
+1. No Freelens, em **Extensions**, escolha **Install** e digite `freelens-eso-extension`
+   (sem caminho de diretório). O Freelens resolve o pacote no registry do npm.
+2. Confirme e habilite a extensão; as três páginas aparecem na sidebar de cada cluster.
+
+Para publicar uma nova versão:
+
+```powershell
+pnpm bump-version patch        # ou minor/major/prerelease
+pnpm build
+pnpm publish --no-git-checks   # requer NODE_AUTH_TOKEN do npmjs.com
+```
+
+O workflow `.github/workflows/release.yaml` também publica automaticamente no push de uma tag
+`v*` (requer o secret `NPM_TOKEN` do registry npm no repositório GitHub).
+
+## Instalar no Freelens (a partir do diretório, para desenvolvimento)
 
 1. `pnpm install && pnpm build` (ou deixe `pnpm dev` rodando para o watch).
 2. No Freelens, em **Extensions**, escolha **Install from directory** e aponte para este
