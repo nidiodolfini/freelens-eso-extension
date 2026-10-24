@@ -2,23 +2,23 @@
 
 > Documento de referência para a extensão Freelens do ESO.
 > Fonte primária: tipos Go do controller (external-secrets/external-secrets, branch `main`)
-> + docs oficiais em https://external-secrets.io/latest/.
+> e docs oficiais em <https://external-secrets.io/latest/>.
 > Todos os campos abaixo vêm dos tipos Go reais (tags json + marcadores kubebuilder), não de memória.
 
 ## Fontes
 
 | Fonte | URL |
 | --- | --- |
-| Tipos Go v1 (ExternalSecret) | https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/externalsecret_types.go |
-| Tipos Go v1 (SecretStore/ClusterSecretStore) | https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/secretstore_types.go |
-| Tipos Go v1beta1 (legado) | https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1beta1/secretstore_types.go |
-| Docs: ExternalSecret | https://external-secrets.io/latest/api/externalsecret/ |
-| Docs: SecretStore | https://external-secrets.io/latest/api/secretstore/ |
-| Docs: ClusterSecretStore | https://external-secrets.io/latest/api/clustersecretstore/ |
-| Spec completa (todos os types) | https://external-secrets.io/latest/api/spec/ |
-| FAQ (force-sync, status) | https://external-secrets.io/latest/introduction/faq/ |
+| Tipos Go v1 (ExternalSecret) | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/externalsecret_types.go> |
+| Tipos Go v1 (SecretStore/ClusterSecretStore) | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/secretstore_types.go> |
+| Tipos Go v1beta1 (legado) | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1beta1/secretstore_types.go> |
+| Docs: ExternalSecret | <https://external-secrets.io/latest/api/externalsecret/> |
+| Docs: SecretStore | <https://external-secrets.io/latest/api/secretstore/> |
+| Docs: ClusterSecretStore | <https://external-secrets.io/latest/api/clustersecretstore/> |
+| Spec completa (todos os types) | <https://external-secrets.io/latest/api/spec/> |
+| FAQ (force-sync, status) | <https://external-secrets.io/latest/introduction/faq/> |
 
-> ⚠️ A URL `https://external-secrets.io/latest/api/status/` retorna **404** — não existe página
+> A URL `https://external-secrets.io/latest/api/status/` retorna **404** — não existe página
 > de status separada na doc atual. A documentação de status está nos tipos Go, nas páginas de
 > cada resource e na FAQ (seções citadas abaixo).
 
@@ -119,16 +119,16 @@ status:
 
 ```go
 type ExternalSecretStatus struct {
-	// refreshTime: momento em que o secret externo foi buscado e o target atualizado
-	RefreshTime metav1.Time `json:"refreshTime,omitempty"`   // +nullable
+    // refreshTime: momento em que o secret externo foi buscado e o target atualizado
+    RefreshTime metav1.Time `json:"refreshTime,omitempty"`   // +nullable
 
-	// SyncedResourceVersion: última versão sincronizada (resourceVersion do Secret gerado)
-	SyncedResourceVersion string `json:"syncedResourceVersion,omitempty"`
+    // SyncedResourceVersion: última versão sincronizada (resourceVersion do Secret gerado)
+    SyncedResourceVersion string `json:"syncedResourceVersion,omitempty"`
 
-	Conditions []ExternalSecretStatusCondition `json:"conditions,omitempty"`
+    Conditions []ExternalSecretStatusCondition `json:"conditions,omitempty"`
 
-	// Binding: referência servicebinding.io ProvisionedService para o secret
-	Binding corev1.LocalObjectReference `json:"binding,omitempty"`
+    // Binding: referência servicebinding.io ProvisionedService para o secret
+    Binding corev1.LocalObjectReference `json:"binding,omitempty"`
 }
 ```
 
@@ -143,16 +143,16 @@ type ExternalSecretStatus struct {
 type ExternalSecretConditionType string
 
 const (
-	ExternalSecretReady   ExternalSecretConditionType = "Ready"   // o secret está pronto e sincronizado
-	ExternalSecretDeleted ExternalSecretConditionType = "Deleted" // o secret foi deletado (deletionPolicy Delete)
+    ExternalSecretReady   ExternalSecretConditionType = "Ready"   // o secret está pronto e sincronizado
+    ExternalSecretDeleted ExternalSecretConditionType = "Deleted" // o secret foi deletado (deletionPolicy Delete)
 )
 
 type ExternalSecretStatusCondition struct {
-	Type               ExternalSecretConditionType `json:"type"`
-	Status             corev1.ConditionStatus      `json:"status"`   // True | False | Unknown
-	Reason             string                      `json:"reason,omitempty"`
-	Message            string                      `json:"message,omitempty"`
-	LastTransitionTime metav1.Time                 `json:"lastTransitionTime,omitempty"`
+    Type               ExternalSecretConditionType `json:"type"`
+    Status             corev1.ConditionStatus      `json:"status"`   // True | False | Unknown
+    Reason             string                      `json:"reason,omitempty"`
+    Message            string                      `json:"message,omitempty"`
+    LastTransitionTime metav1.Time                 `json:"lastTransitionTime,omitempty"`
 }
 ```
 
@@ -228,9 +228,9 @@ type ClusterSecretStore struct { Spec SecretStoreSpec; Status SecretStoreStatus 
 
 ```go
 type ClusterSecretStoreCondition struct {
-	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"` // matchLabels
-	Namespaces        []string              `json:"namespaces,omitempty"`        // nomes exatos
-	NamespaceRegexes  []string              `json:"namespaceRegexes,omitempty"`  // regex sobre nomes
+    NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"` // matchLabels
+    Namespaces        []string              `json:"namespaces,omitempty"`        // nomes exatos
+    NamespaceRegexes  []string              `json:"namespaceRegexes,omitempty"`  // regex sobre nomes
 }
 ```
 
@@ -238,26 +238,26 @@ type ClusterSecretStoreCondition struct {
 
 ```go
 type SecretStoreStatus struct {
-	Conditions   []SecretStoreStatusCondition `json:"conditions,omitempty"`
-	Capabilities SecretStoreCapabilities      `json:"capabilities,omitempty"`
+    Conditions   []SecretStoreStatusCondition `json:"conditions,omitempty"`
+    Capabilities SecretStoreCapabilities      `json:"capabilities,omitempty"`
 }
 
 type SecretStoreConditionType string
 const SecretStoreReady SecretStoreConditionType = "Ready" // store pronto e capaz de servir requests
 
 type SecretStoreStatusCondition struct {
-	Type   SecretStoreConditionType `json:"type"`
-	Status corev1.ConditionStatus   `json:"status"`
-	Reason string                   `json:"reason,omitempty"`
-	Message string                  `json:"message,omitempty"`
-	LastTransitionTime metav1.Time  `json:"lastTransitionTime,omitempty"`
+    Type   SecretStoreConditionType `json:"type"`
+    Status corev1.ConditionStatus   `json:"status"`
+    Reason string                   `json:"reason,omitempty"`
+    Message string                  `json:"message,omitempty"`
+    LastTransitionTime metav1.Time  `json:"lastTransitionTime,omitempty"`
 }
 
 type SecretStoreCapabilities string
 const (
-	SecretStoreReadOnly  = "ReadOnly"
-	SecretStoreWriteOnly = "WriteOnly"
-	SecretStoreReadWrite = "ReadWrite"
+    SecretStoreReadOnly  = "ReadOnly"
+    SecretStoreWriteOnly = "WriteOnly"
+    SecretStoreReadWrite = "ReadWrite"
 )
 ```
 
@@ -408,7 +408,7 @@ sempre mude:
 kubectl annotate es my-es force-sync=$(date +%s) --overwrite
 ```
 
-(Comando exato da doc "Manual Refresh" em https://external-secrets.io/latest/api/externalsecret/.
+(Comando exato da doc "Manual Refresh" em <https://external-secrets.io/latest/api/externalsecret/>.
 A doc usa a chave curta `force-sync` no exemplo; a chave completa reconhecida pelo controller é
 `external-secrets.io/force-sync` — use a completa por segurança, como a própria FAQ faz.)
 
