@@ -81,7 +81,7 @@ Node 22+ and pnpm are required.
 pnpm install
 pnpm type:check     # tsc -p tsconfig.json (single program, as in the fluxcd extension)
 pnpm test:unit      # vitest
-pnpm build          # electron-vite build -> out/main and out/renderer (CommonJS)
+pnpm build          # type check, then electron-vite build -> out/main and out/renderer (CommonJS)
 pnpm biome:fix      # formatting/lint (TypeScript, TSX, JSON, CSS, HTML)
 pnpm biome:check
 pnpm knip:check     # unused files and dependencies (downloads knip via pnpm dlx)
@@ -93,31 +93,6 @@ To load the checkout in Freelens, run `pnpm install && pnpm build`, then in **Ex
 choose **Install from directory** and point at this directory; confirm loading the
 extension "in place" so rebuilds reload it automatically.
 
-### Development environment notes (this workspace)
-
-The development machine runs inside a sandbox that blocks some standard tooling, so this
-checkout carries a few workarounds; they are documented here because they differ from the
-upstream template:
-
-- `packageManager` is `pnpm@11.28.6`, vendored under `.tools/` with a shim at
-  `.tools/bin/pnpm.cmd` (add `.tools\bin` to `PATH`). pnpm 12 keeps its store lock in
-  `%LOCALAPPDATA%`, which the sandbox blocks.
-- `nodeLinker: hoisted` is set in `pnpm-workspace.yaml`.
-- The sandbox blocks spawning child processes with piped stdio, so `.tools/patch-vite.mjs`
-  applies three environment fixes after `pnpm install`: the `net use` realpath call of Vite
-  (try/catch), the pure-JS `sass` compiler instead of `sass-embedded` (which spawns the Dart
-  Sass binary), and in-process TypeScript transpilation of the electron-vite config instead
-  of the esbuild service (which spawns a binary).
-- The electron-vite config therefore does not use `@vitejs/plugin-react` (the config's
-  CommonJS loader cannot `require()` the plugin's ESM graph with top-level `await`); JSX uses
-  Vite's native automatic transform (`react/jsx-runtime` mapped to the host global). The
-  plugin stays as a devDependency to mirror the fluxcd extension, and knip ignores it.
-- `test:unit` uses `--pool=threads` and `knip:check` uses `&&` instead of the parallel
-  regex script, both because of the same spawn restriction.
-- `biome:*` and `knip:*` download via `pnpm dlx`, whose default cache lives in
-  `%LOCALAPPDATA%`; set `$env:LOCALAPPDATA` to a workspace-local directory before running
-  them on this machine.
-
 ## Project structure
 
 ```text
@@ -127,16 +102,18 @@ src/
   main/index.ts                                  # main entry (stateless)
   renderer/index.tsx                             # v1 registrations: apiManager, 3 pages, details, menu
   renderer/api/types.ts                          # ESO spec/status types
-  renderer/api/store-helpers.ts                  # pure status helpers shared by the stores
+  renderer/api/store-helpers.ts                  # condition helpers shared by the models and panels
   renderer/api/externalsecret/externalsecret-v1.ts   # ExternalSecret model (+ Api/Store, test)
   renderer/api/secretstore/secretstore-v1.ts         # SecretStore model (+ Api/Store, test)
   renderer/api/clustersecretstore/clustersecretstore-v1.ts # ClusterSecretStore model (+ Api/Store, test)
   renderer/pages/                                # 3 pages + CSS module
-  renderer/details/                              # 3 details panels
+  renderer/details/                              # ExternalSecret panel, StoreDetails for both stores
   renderer/menus/                                # Force Sync (ExternalSecret)
   renderer/icons/                                # External Secrets Operator logo (currentColor)
   renderer/components/                           # createAvailableVersionPage, error boundaries
 examples/eso/                                    # test objects (kubectl apply -f)
+docs/eso-api.md                                  # ESO API notes the types follow
+AGENTS.md                                        # guide for coding agents
 ```
 
 Build output goes to `out/main/index.js` and `out/renderer/index.js` (CommonJS bundles, like
