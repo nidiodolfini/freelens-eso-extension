@@ -10,12 +10,9 @@ import { globalExternals } from "./build/global-externals.js";
 // `rollupOptions.external` that electron-vite would otherwise apply.
 const runtimeExternals = ["electron", /^electron\//, ...builtinModules, ...builtinModules.map((m) => `node:${m}`)];
 
-// NOTE: unlike the fluxcd extension, this config does not use
-// `@vitejs/plugin-react`: its ES module graph has top-level `await`, so the
-// CommonJS config loader cannot `require()` it in the sandbox, and Vite
-// already transforms the JSX of the renderer with its built-in automatic
-// runtime (`react/jsx-runtime`, mapped to the host global below). The plugin
-// stays a devDependency for `vitest.config.ts`.
+// Unlike the fluxcd extension, this config needs no `@vitejs/plugin-react`:
+// Vite transforms the JSX of the renderer with its built-in automatic runtime
+// (`react/jsx-runtime`, mapped to the host global below).
 
 export default defineConfig({
   // main process has full access to Node.js APIs
