@@ -1,177 +1,168 @@
 # freelens-eso-extension
 
-Extensão Freelens para o **External Secrets Operator (ESO)**. Portado da extension API v2
-para a **API v1 (Freelens 1.x, `engines.freelens: ^1.8.0`)**, seguindo o layout de build da
-extensão oficial [`freelensapp/freelens-fluxcd-extension`](https://github.com/freelensapp/freelens-fluxcd-extension)
-v5.3.1 (electron-vite, `out/`, bundles CommonJS).
+A Freelens extension for the [External Secrets Operator](https://external-secrets.io/) (ESO):
+browse ExternalSecrets, SecretStores and ClusterSecretStores, see their sync status at a
+glance, and trigger a manual sync from the UI.
 
-Repositório: <https://github.com/nidiodolfini/freelens-eso-extension> · Pacote npm:
-[`freelens-eso-extension`](https://www.npmjs.com/package/freelens-eso-extension)
+Built for the Freelens **extension API v1** (Freelens 1.x, `engines.freelens: ^1.8.0`), with
+the build layout of the official
+[`freelensapp/freelens-fluxcd-extension`](https://github.com/freelensapp/freelens-fluxcd-extension)
+v5.3.1 (electron-vite, CommonJS bundles in `out/`).
 
-## O que a extensão faz
+Repository: <https://github.com/nidiodolfini/freelens-eso-extension> ·
+npm package: [`freelens-eso-extension`](https://www.npmjs.com/package/freelens-eso-extension) ·
+Proposed in [freelensapp/freelens discussion #2840](https://github.com/freelensapp/freelens/discussions/2840).
 
-Três páginas de cluster, uma por recurso do ESO:
+## What the extension does
 
-- **External Secrets** (`es`) — colunas espelhando `kubectl get es`: Name, Namespace, Store
-  Type, Store, Refresh Interval, Status, Ready, Last Sync e Age.
-- **Secret Stores** (`ss`) — colunas espelhando `kubectl get ss`: Name, Namespace, Provider,
-  Status, Capabilities, Ready e Age.
-- **Cluster Secret Stores** (`css`) — o mesmo, sem Namespace.
+Three cluster pages, one per ESO resource, grouped under a single sidebar entry:
 
-O status vem da condition `Ready` de cada recurso: `success`/`error`/`warning`, com o reason do
-controller (`SecretSynced`, `SecretSyncedError`, `Valid`, `ValidationFailed`, ...). Quando a CRD
-não está instalada no cluster, a página mostra "Not Available".
+- **External Secrets** (`es`) — columns mirroring `kubectl get es`: Name, Namespace, Store
+  Type, Store, Refresh Interval, Status, Ready, Last Sync and Age.
+- **Secret Stores** (`ss`) — columns mirroring `kubectl get ss`: Name, Namespace, Provider,
+  Status, Capabilities, Ready and Age.
+- **Cluster Secret Stores** (`css`) — the same, without Namespace.
 
-Cada recurso tem um painel de detalhes no drawer: target Secret, store, refresh policy/interval,
-última sincronização, resource version sincronizada e as conditions com tooltip da message.
+Sync status comes from each resource's `Ready` condition and is rendered as a colored badge
+(`success` / `error` / `warning`) with the controller's reason (`SecretSynced`,
+`SecretSyncedError`, `Valid`, `ValidationFailed`, ...). When the CRD is not installed in the
+cluster, the page shows a friendly "Not Available" message.
 
-**Force Sync**: o menu do `ExternalSecret` ganha a ação "Force Sync", que grava um timestamp novo
-na annotation `external-secrets.io/force-sync` — o mesmo que
-`kubectl annotate es <name> force-sync=$(date +%s) --overwrite`. O controller reconcilia quando a
-annotation muda. SecretStore e ClusterSecretStore não têm essa ação.
+Each resource also gets a details panel in the drawer: target Secret, store, refresh
+policy/interval, last sync time, synced resource version and the full conditions with their
+messages as tooltips.
 
-## Requisitos
+**Force Sync**: the `ExternalSecret` menu gains a "Force Sync" action, which writes a fresh
+timestamp to the `external-secrets.io/force-sync` annotation — the same as
+`kubectl annotate es <name> force-sync=$(date +%s) --overwrite`. The controller reconciles
+whenever the annotation changes, so the secret is refreshed immediately. `SecretStore` and
+`ClusterSecretStore` do not support this action, so they have no menu item.
 
-- Freelens 1.10.x (extension API v1; `engines.freelens` exige `^1.8.0`).
-- Um cluster com o External Secrets Operator instalado (`external-secrets.io/v1`).
+## Requirements
 
-## Pré-requisitos deste ambiente
+- Freelens 1.8 or newer (extension API v1; tested on 1.10.x).
+- A cluster with the External Secrets Operator installed (`external-secrets.io/v1`).
 
-- **Node**: `C:\Users\nidio\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe`
-- **pnpm 11.28.6** (vendored em `.tools/pnpm11/`; o pnpm 12 do harness usa um lock de
-  store em `%LOCALAPPDATA%`, que o sandbox bloqueia). Um shim está em
-  [`.tools/bin/pnpm.cmd`](.tools/bin/pnpm.cmd) — adicione `.tools\bin` ao `PATH`:
+## Installation
+
+In Freelens, open **Extensions**, choose **Install** and type `freelens-eso-extension`
+(no path). Freelens resolves the package from the npm registry, exactly like the official
+extensions. Enable it, and the "External Secrets" sidebar group appears on every cluster.
+
+To install from a local checkout instead (for development), see
+[Development](#development) below.
+
+## Usage
+
+1. Apply the example objects to a cluster with ESO installed:
+
+   ```powershell
+   kubectl apply -f examples/eso/secretstore.yaml
+   kubectl apply -f examples/eso/clustersecretstore.yaml
+   kubectl apply -f examples/eso/externalsecret.yaml
+   ```
+
+   These use ESO's `fake` provider, which serves the pair `/hello -> world` without touching
+   any real secret backend; the ExternalSecret creates a Secret named `hello-world` with the
+   key `hello`.
+
+2. Open the cluster in Freelens. The pages list `fake-store`, `fake-cluster-store` and
+   `hello-world`; the ExternalSecret details panel shows `Ready=SecretSynced` after the first
+   sync.
+
+3. Open the `hello-world` menu and click **Force Sync**; the "Last Sync" column updates
+   within seconds as the controller reconciles.
+
+## Development
+
+Node 22+ and pnpm are required.
 
 ```powershell
-$env:PATH = "C:\Users\nidio\GitHub\freelens-extension\.tools\bin;" + $env:PATH
-```
-
-## Setup
-
-```powershell
-$env:ELECTRON_SKIP_BINARY_DOWNLOAD = "1"   # pular binário do electron (types apenas)
-$env:NPM_CONFIG_CACHE = "C:\Users\nidio\GitHub\freelens-extension\.npm-cache"
 pnpm install
-node .tools\patch-vite.mjs                  # patch idempotente do vite p/ o sandbox
-```
-
-Caches ficam dentro do workspace: `.pnpm-store`, `.pnpm-cache`, `.pnpm-state`,
-`.npm-cache` (ver `.npmrc` e `pnpm-workspace.yaml`).
-
-> O patch aplica três correções de ambiente (o sandbox DSH bloqueia spawn com
-> stdio em pipe): o `net use` do realpath (try/catch), o uso do compilador Sass
-> JS puro (`sass`) em vez do `sass-embedded` (que spawna o binário Dart Sass) e,
-> no electron-vite, a transpilação do config por TypeScript in-process em vez do
-> serviço esbuild (que spawna um binário). Rode o script novamente após qualquer
-> `pnpm install` que recrie as dependências.
-
-## Comandos de desenvolvimento
-
-```powershell
-pnpm type:check     # tsc -p tsconfig.json (um programa único, como no fluxcd)
+pnpm type:check     # tsc -p tsconfig.json (single program, as in the fluxcd extension)
 pnpm test:unit      # vitest
-pnpm build          # electron-vite build → out/main e out/renderer (CommonJS)
-pnpm biome:fix      # formatação/lint (TypeScript, TSX, JSON, CSS, HTML)
+pnpm build          # electron-vite build -> out/main and out/renderer (CommonJS)
+pnpm biome:fix      # formatting/lint (TypeScript, TSX, JSON, CSS, HTML)
 pnpm biome:check
-pnpm knip:check     # arquivos e dependências não usados (requer download via pnpm dlx)
-pnpm pack:dev       # bump prerelease + build + .tgz para instalar no Freelens
+pnpm knip:check     # unused files and dependencies (downloads knip via pnpm dlx)
+pnpm pack:dev       # bump prerelease + build + .tgz to install in Freelens
 pnpm clean          # remove out/
 ```
 
-> `biome:*` e `knip:*` rodam via `pnpm dlx`, cujo cache padrão fica em
-> `%LOCALAPPDATA%` (bloqueado no sandbox). Redirecione para dentro do workspace antes de
-> rodá-los: `$env:LOCALAPPDATA = "C:\Users\nidio\GitHub\freelens-extension\.localappdata"`.
-> O `test:unit` usa `--pool=threads` porque o pool forks do vitest spawna processos filhos,
-> bloqueados no sandbox.
+To load the checkout in Freelens, run `pnpm install && pnpm build`, then in **Extensions**
+choose **Install from directory** and point at this directory; confirm loading the
+extension "in place" so rebuilds reload it automatically.
 
-## Instalar pelo nome (npm)
+### Development environment notes (this workspace)
 
-Depois de publicado, o Freelens instala a extensão pelo nome, como as extensões oficiais:
+The development machine runs inside a sandbox that blocks some standard tooling, so this
+checkout carries a few workarounds; they are documented here because they differ from the
+upstream template:
 
-1. No Freelens, em **Extensions**, escolha **Install** e digite `freelens-eso-extension`
-   (sem caminho de diretório). O Freelens resolve o pacote no registry do npm.
-2. Confirme e habilite a extensão; as três páginas aparecem na sidebar de cada cluster.
+- `packageManager` is `pnpm@11.28.6`, vendored under `.tools/` with a shim at
+  `.tools/bin/pnpm.cmd` (add `.tools\bin` to `PATH`). pnpm 12 keeps its store lock in
+  `%LOCALAPPDATA%`, which the sandbox blocks.
+- `nodeLinker: hoisted` is set in `pnpm-workspace.yaml`.
+- The sandbox blocks spawning child processes with piped stdio, so `.tools/patch-vite.mjs`
+  applies three environment fixes after `pnpm install`: the `net use` realpath call of Vite
+  (try/catch), the pure-JS `sass` compiler instead of `sass-embedded` (which spawns the Dart
+  Sass binary), and in-process TypeScript transpilation of the electron-vite config instead
+  of the esbuild service (which spawns a binary).
+- The electron-vite config therefore does not use `@vitejs/plugin-react` (the config's
+  CommonJS loader cannot `require()` the plugin's ESM graph with top-level `await`); JSX uses
+  Vite's native automatic transform (`react/jsx-runtime` mapped to the host global). The
+  plugin stays as a devDependency to mirror the fluxcd extension, and knip ignores it.
+- `test:unit` uses `--pool=threads` and `knip:check` uses `&&` instead of the parallel
+  regex script, both because of the same spawn restriction.
+- `biome:*` and `knip:*` download via `pnpm dlx`, whose default cache lives in
+  `%LOCALAPPDATA%`; set `$env:LOCALAPPDATA` to a workspace-local directory before running
+  them on this machine.
 
-Para publicar uma nova versão:
-
-```powershell
-pnpm bump-version patch        # ou minor/major/prerelease
-pnpm build
-pnpm publish --no-git-checks   # requer NODE_AUTH_TOKEN do npmjs.com
-```
-
-O workflow `.github/workflows/release.yaml` também publica automaticamente no push de uma tag
-`v*` (requer o secret `NPM_TOKEN` do registry npm no repositório GitHub).
-
-## Instalar no Freelens (a partir do diretório, para desenvolvimento)
-
-1. `pnpm install && pnpm build` (ou deixe `pnpm dev` rodando para o watch).
-2. No Freelens, em **Extensions**, escolha **Install from directory** e aponte para este
-   diretório. Confirme carregar a extensão "in place" para que os rebuilds recarreguem sozinhos.
-
-## Testar com os exemplos
-
-Aplique os objetos de exemplo em um cluster com o ESO instalado:
-
-```powershell
-kubectl apply -f examples/eso/secretstore.yaml
-kubectl apply -f examples/eso/clustersecretstore.yaml
-kubectl apply -f examples/eso/externalsecret.yaml
-```
-
-As páginas "Secret Stores", "Cluster Secret Stores" e "External Secrets" devem listar
-`fake-store`, `fake-cluster-store` e `hello-world`, e o details do ExternalSecret mostra a
-condition `Ready=SecretSynced` depois do primeiro sync (o provider `fake` serve o par
-`/hello → world`, usado para criar o Secret `hello-world` com a chave `hello`).
-
-## Estrutura
+## Project structure
 
 ```text
-electron.vite.config.js                         # config do electron-vite (main + renderer em preload)
-build/global-externals.js                       # plugin: react/mobx/... → globals do host (v1)
+electron.vite.config.js                          # electron-vite config (main + renderer in preload)
+build/global-externals.js                        # plugin: react/mobx/... -> host globals (v1)
 src/
-  main/index.ts                                 # entry main (sem estado)
-  renderer/index.tsx                            # registros v1: apiManager, 3 páginas, details, menu
-  renderer/api/types.ts                         # tipos do spec/status do ESO
-  renderer/api/store-helpers.ts                 # helpers puros de status dos stores
-  renderer/api/externalsecret/externalsecret-v1.ts # modelo ExternalSecret (+ Api/Store consts, teste)
-  renderer/api/secretstore/secretstore-v1.ts       # modelo SecretStore (+ Api/Store consts, teste)
-  renderer/api/clustersecretstore/clustersecretstore-v1.ts # modelo ClusterSecretStore (+ Api/Store consts, teste)
-  renderer/pages/                               # 3 páginas + CSS module
-  renderer/details/                             # 3 painéis de detalhes
-  renderer/menus/                               # Force Sync (ExternalSecret)
-  renderer/icons/                               # ícone cadeado + seta de refresh
-  renderer/components/                          # createAvailableVersionPage, error boundaries
-examples/eso/                                   # objetos de teste (kubectl apply -f)
+  main/index.ts                                  # main entry (stateless)
+  renderer/index.tsx                             # v1 registrations: apiManager, 3 pages, details, menu
+  renderer/api/types.ts                          # ESO spec/status types
+  renderer/api/store-helpers.ts                  # pure status helpers shared by the stores
+  renderer/api/externalsecret/externalsecret-v1.ts   # ExternalSecret model (+ Api/Store, test)
+  renderer/api/secretstore/secretstore-v1.ts         # SecretStore model (+ Api/Store, test)
+  renderer/api/clustersecretstore/clustersecretstore-v1.ts # ClusterSecretStore model (+ Api/Store, test)
+  renderer/pages/                                # 3 pages + CSS module
+  renderer/details/                              # 3 details panels
+  renderer/menus/                                # Force Sync (ExternalSecret)
+  renderer/icons/                                # External Secrets Operator logo (currentColor)
+  renderer/components/                           # createAvailableVersionPage, error boundaries
+examples/eso/                                    # test objects (kubectl apply -f)
 ```
 
-Build em `out/main/index.js` e `out/renderer/index.js` (bundles CommonJS, como as extensões
-Freelens 1.x); `package.json` aponta `main`/`renderer` para esses arquivos.
+Build output goes to `out/main/index.js` and `out/renderer/index.js` (CommonJS bundles, like
+the other Freelens 1.x extensions); `package.json` points `main`/`renderer` at them.
 
-## Versões da API
+## Supported API versions
 
-A extensão suporta **somente `external-secrets.io/v1`** (uma versão por kind, com a página
-"Not Available" quando a CRD não está instalada). O `v1beta1` está unserved desde o ESO 0.9
-(2023); para adicioná-lo depois, siga o mesmo padrão de modelo/página/details por versão e
-liste as duas em `createAvailableVersionPage`, da mais nova para a mais antiga.
+The extension supports **`external-secrets.io/v1` only** (one version per kind, with the
+"Not Available" page when the CRD is missing). `v1beta1` has been unserved since ESO 0.9
+(2023); to add it later, follow the same per-version model/page/details pattern and list
+both versions in `createAvailableVersionPage`, newest first.
 
-## Desvios do template
+## Publishing a release
 
-- `packageManager` = `pnpm@11.28.6` (pnpm 12 exige lock em `%LOCALAPPDATA%`, negado no sandbox).
-- `nodeLinker: hoisted` em `pnpm-workspace.yaml`.
-- O build usa electron-vite (`electron.vite.config.js` + `build/global-externals.js`, espelhando
-  o fluxcd v5.3.1): `react`/`react-dom`/`mobx`/`mobx-react`/`@freelensapp/extensions` são
-  fornecidos pelo host v1 via `global.*` e ficam externos; main e renderer saem como CommonJS.
-- A seção `preload` do electron-vite compila o renderer (sem HTML de entrada) para `out/renderer`.
-- CSS dos módulos entra nas páginas via `?inline` + `<style>` (padrão do fluxcd v1), porque o
-  build com `preserveModules` não garante um único `renderer.css` carregado pelo host.
-- O config do electron-vite **não** usa `@vitejs/plugin-react` (ao contrário do fluxcd): o
-  carregador CommonJS do config não consegue `require()` o grafo ESM do plugin (tem
-  top-level `await`) e o sandbox não executa o bundler esbuild do electron-vite; o JSX do
-  renderer usa o transform automático nativo do Vite (`react/jsx-runtime` → global do host).
-  O plugin permanece como devDependency (espelho do fluxcd) e o knip o ignora.
-- `test:unit` usa `--pool=threads` porque o pool forks do vitest spawna processos filhos,
-  bloqueados no sandbox.
-- `knip:check` usa `&&` em vez do padrão regex `pnpm "/^...$/"` (sintaxe de aspas quebra no
-  `cmd.exe` do Windows).
-- Sem preferências/ExtensionStore e sem testes de integração (o main é uma classe mínima).
+```powershell
+pnpm bump-version patch        # or minor/major/prerelease
+pnpm build
+pnpm publish                   # requires npmjs.com authentication (NODE_AUTH_TOKEN)
+```
+
+The `.github/workflows/release.yaml` workflow also publishes automatically when a `v*` tag
+is pushed (it needs the npm registry `NPM_TOKEN` secret in the GitHub repository, or npm
+Trusted Publishing / provenance).
+
+## License
+
+MIT. The sidebar icon is the External Secrets Operator logo
+([external-secrets.io](https://external-secrets.io/), Apache-2.0), recolored with
+`currentColor` so it follows the Freelens theme.
