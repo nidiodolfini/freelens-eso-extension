@@ -1,6 +1,15 @@
 import { Renderer } from "@freelensapp/extensions";
 import * as MobxReact from "mobx-react";
-import { SecretStore } from "../api/secretstore/secretstore-v1";
+import {
+  getConditionClass,
+  getStatusClass,
+  getStoreCapabilities,
+  getStoreProviderName,
+  getStoreStatusText,
+} from "../api/store-helpers";
+
+import type { ClusterSecretStore } from "../api/clustersecretstore/clustersecretstore-v1";
+import type { SecretStore } from "../api/secretstore/secretstore-v1";
 
 const { observer } = MobxReact;
 
@@ -8,20 +17,13 @@ const {
   Component: { Badge, DrawerItem },
 } = Renderer;
 
-export type SecretStoreDetailsProps = Renderer.Component.KubeObjectDetailsProps<SecretStore>;
+/**
+ * The details panel of a SecretStore and of a ClusterSecretStore. The two
+ * kinds share their spec and status, so one panel serves both registrations.
+ */
+export type StoreDetailsProps = Renderer.Component.KubeObjectDetailsProps<SecretStore | ClusterSecretStore>;
 
-function conditionClass(status: string): string {
-  switch (status) {
-    case "True":
-      return "success";
-    case "False":
-      return "error";
-    default:
-      return "warning";
-  }
-}
-
-export const SecretStoreDetails = observer(({ object }: SecretStoreDetailsProps) => {
+export const StoreDetails = observer(({ object }: StoreDetailsProps) => {
   const retrySettings = object.spec.retrySettings;
   const retryParts = [
     retrySettings?.maxRetries !== undefined ? `max retries: ${retrySettings.maxRetries}` : undefined,
@@ -33,23 +35,23 @@ export const SecretStoreDetails = observer(({ object }: SecretStoreDetailsProps)
 
   return (
     <>
-      <DrawerItem name="Provider">{SecretStore.getProviderName(object) ?? "-"}</DrawerItem>
+      <DrawerItem name="Provider">{getStoreProviderName(object.spec.provider) ?? "-"}</DrawerItem>
       <DrawerItem name="Controller" hidden={!object.spec.controller}>
         {object.spec.controller}
       </DrawerItem>
       <DrawerItem name="Retry Settings" hidden={!retrySettings}>
         {retryParts}
       </DrawerItem>
-      <DrawerItem name="Capabilities">{SecretStore.getCapabilities(object) ?? "-"}</DrawerItem>
+      <DrawerItem name="Capabilities">{getStoreCapabilities(object.status) ?? "-"}</DrawerItem>
       <DrawerItem name="Status">
-        <Badge label={SecretStore.getStatusText(object)} className={SecretStore.getStatusClass(object)} />
+        <Badge label={getStoreStatusText(conditions)} className={getStatusClass(conditions)} />
       </DrawerItem>
       <DrawerItem name="Conditions" labelsOnly hidden={!conditions?.length}>
         {conditions?.map((condition, index) => (
           <Badge
             key={condition.type + index}
             label={condition.reason || condition.type}
-            className={conditionClass(condition.status)}
+            className={getConditionClass(condition.status)}
             tooltip={condition.message}
           />
         ))}

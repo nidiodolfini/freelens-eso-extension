@@ -13,9 +13,8 @@ import {
   withMenuItemErrorBoundary,
   withPageErrorBoundary,
 } from "./components/error-boundary";
-import { ClusterSecretStoreDetails } from "./details/cluster-secret-store-details";
 import { ExternalSecretDetails } from "./details/external-secret-details";
-import { SecretStoreDetails } from "./details/secret-store-details";
+import { StoreDetails } from "./details/store-details";
 import { ExternalSecretsIcon } from "./icons/external-secrets";
 import { ExternalSecretForceSyncMenuItem } from "./menus/external-secret-force-sync-menu-item";
 import { ClusterSecretStoresPage } from "./pages/cluster-secret-stores-page";
@@ -118,13 +117,13 @@ export default class EsoRenderer extends Renderer.LensExtension {
       kind: SecretStore.kind,
       apiVersions: SecretStore.crd.apiVersions,
       priority: 10,
-      components: { Details: SecretStoreDetails },
+      components: { Details: StoreDetails },
     },
     {
       kind: ClusterSecretStore.kind,
       apiVersions: ClusterSecretStore.crd.apiVersions,
       priority: 10,
-      components: { Details: ClusterSecretStoreDetails },
+      components: { Details: StoreDetails },
     },
   ].map((registration) => withDetailsErrorBoundary(this, registration));
 
