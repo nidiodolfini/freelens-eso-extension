@@ -1,10 +1,10 @@
 import { Renderer } from "@freelensapp/extensions";
 import {
+  getReady,
+  getReadyCondition,
+  getStatusClass,
   getStoreCapabilities,
   getStoreProviderName,
-  getStoreReady,
-  getStoreReadyCondition,
-  getStoreStatusClass,
   getStoreStatusText,
 } from "../store-helpers";
 
@@ -36,7 +36,7 @@ export class ClusterSecretStore extends Renderer.K8sApi.KubeObject<
   };
 
   static getReadyCondition(object: ClusterSecretStore): EsoCondition | undefined {
-    return getStoreReadyCondition(object.status?.conditions);
+    return getReadyCondition(object.status?.conditions);
   }
 
   /**
@@ -44,7 +44,7 @@ export class ClusterSecretStore extends Renderer.K8sApi.KubeObject<
    * condition, or undefined when the controller has not written one yet.
    */
   static getReady(object: ClusterSecretStore): boolean | undefined {
-    return getStoreReady(object.status?.conditions);
+    return getReady(object.status?.conditions);
   }
 
   /**
@@ -56,7 +56,7 @@ export class ClusterSecretStore extends Renderer.K8sApi.KubeObject<
   }
 
   static getStatusClass(object: ClusterSecretStore): string {
-    return getStoreStatusClass(object.status?.conditions);
+    return getStatusClass(object.status?.conditions);
   }
 
   /**

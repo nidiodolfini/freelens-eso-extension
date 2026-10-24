@@ -1,36 +1,49 @@
 import type { EsoCondition, SecretStoreCapabilities, SecretStoreProvider, SecretStoreStatus } from "./types";
 
 /**
- * Pure helpers shared by the SecretStore and ClusterSecretStore models: both
- * kinds carry the same spec and status, so their statics delegate to these
- * functions.
+ * Pure helpers shared by the models and the details panels. Every ESO kind
+ * reports its state through a `Ready` condition, so the statics of the models
+ * delegate to these functions, with the default texts of their kind.
  */
 
-export function getStoreReadyCondition(conditions: EsoCondition[] | undefined): EsoCondition | undefined {
+export function getReadyCondition(conditions: EsoCondition[] | undefined): EsoCondition | undefined {
   return conditions?.find((condition) => condition.type === "Ready");
 }
 
-export function getStoreReady(conditions: EsoCondition[] | undefined): boolean | undefined {
-  const condition = getStoreReadyCondition(conditions);
+/**
+ * The READY column of `kubectl get`: the status of the Ready condition, or
+ * undefined when the controller has not written one yet.
+ */
+export function getReady(conditions: EsoCondition[] | undefined): boolean | undefined {
+  const condition = getReadyCondition(conditions);
   if (condition?.status === "True") return true;
   if (condition?.status === "False") return false;
   return undefined;
 }
 
 /**
- * The STATUS column of `kubectl get ss/css`: the reason of the Ready
- * condition, with the controller defaults for a missing reason.
+ * The STATUS column of `kubectl get`: the reason of the Ready condition, with
+ * the controller defaults of the kind for a missing reason.
  */
-export function getStoreStatusText(conditions: EsoCondition[] | undefined): string {
-  const condition = getStoreReadyCondition(conditions);
-  if (condition?.status === "True") return condition.reason ?? "Valid";
-  if (condition?.status === "False") return condition.reason ?? "Invalid";
+export function getStatusText(conditions: EsoCondition[] | undefined, readyText: string, notReadyText: string): string {
+  const condition = getReadyCondition(conditions);
+  if (condition?.status === "True") return condition.reason ?? readyText;
+  if (condition?.status === "False") return condition.reason ?? notReadyText;
   return "Unknown";
 }
 
-export function getStoreStatusClass(conditions: EsoCondition[] | undefined): string {
-  const condition = getStoreReadyCondition(conditions);
-  switch (condition?.status) {
+/**
+ * The STATUS column of `kubectl get ss/css`, with the defaults of the stores.
+ */
+export function getStoreStatusText(conditions: EsoCondition[] | undefined): string {
+  return getStatusText(conditions, "Valid", "Invalid");
+}
+
+/**
+ * The Badge class of a condition status; empty when there is no condition.
+ */
+export function getConditionClass(status: string | undefined): string {
+  switch (status) {
     case "True":
       return "success";
     case "False":
@@ -40,6 +53,10 @@ export function getStoreStatusClass(conditions: EsoCondition[] | undefined): str
     default:
       return "";
   }
+}
+
+export function getStatusClass(conditions: EsoCondition[] | undefined): string {
+  return getConditionClass(getReadyCondition(conditions)?.status);
 }
 
 export function getStoreCapabilities(status: SecretStoreStatus | undefined): SecretStoreCapabilities | undefined {

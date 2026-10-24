@@ -1,4 +1,5 @@
 import { Renderer } from "@freelensapp/extensions";
+import { getReady, getReadyCondition, getStatusClass, getStatusText } from "../store-helpers";
 
 import type { EsoCondition, EsoKubeObjectCRD, ExternalSecretSpec, ExternalSecretStatus } from "../types";
 
@@ -22,7 +23,7 @@ export class ExternalSecret extends Renderer.K8sApi.KubeObject<
   };
 
   static getReadyCondition(object: ExternalSecret): EsoCondition | undefined {
-    return object.status?.conditions?.find((condition) => condition.type === "Ready");
+    return getReadyCondition(object.status?.conditions);
   }
 
   /**
@@ -30,10 +31,7 @@ export class ExternalSecret extends Renderer.K8sApi.KubeObject<
    * or undefined when the controller has not written one yet.
    */
   static getReady(object: ExternalSecret): boolean | undefined {
-    const condition = ExternalSecret.getReadyCondition(object);
-    if (condition?.status === "True") return true;
-    if (condition?.status === "False") return false;
-    return undefined;
+    return getReady(object.status?.conditions);
   }
 
   /**
@@ -41,24 +39,11 @@ export class ExternalSecret extends Renderer.K8sApi.KubeObject<
    * with the controller defaults for a missing reason.
    */
   static getStatusText(object: ExternalSecret): string {
-    const condition = ExternalSecret.getReadyCondition(object);
-    if (condition?.status === "True") return condition.reason ?? "Ready";
-    if (condition?.status === "False") return condition.reason ?? "Not Ready";
-    return "Unknown";
+    return getStatusText(object.status?.conditions, "Ready", "Not Ready");
   }
 
   static getStatusClass(object: ExternalSecret): string {
-    const condition = ExternalSecret.getReadyCondition(object);
-    switch (condition?.status) {
-      case "True":
-        return "success";
-      case "False":
-        return "error";
-      case "Unknown":
-        return "warning";
-      default:
-        return "";
-    }
+    return getStatusClass(object.status?.conditions);
   }
 
   /**
