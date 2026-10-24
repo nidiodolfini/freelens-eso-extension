@@ -1,5 +1,6 @@
 declare const classNames: {
   readonly page: "page";
+  readonly tableCell: "tableCell";
   readonly storeType: "storeType";
   readonly store: "store";
   readonly provider: "provider";
