@@ -82,6 +82,7 @@ jobs:
           default_author: github_actions
           message: Automated npm dedupe
           new_branch: automated/npm-dedupe
+          fetch: false
           push: origin automated/npm-dedupe --set-upstream --force
 
       - name: Create pull request
