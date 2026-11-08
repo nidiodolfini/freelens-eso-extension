@@ -1,8 +1,8 @@
 # freelens-eso-extension
 
 A Freelens extension for the [External Secrets Operator](https://external-secrets.io/) (ESO):
-browse ExternalSecrets, SecretStores and ClusterSecretStores, see their sync status at a
-glance, and trigger a manual sync from the UI.
+browse ExternalSecrets, ClusterExternalSecrets, PushSecrets, SecretStores and
+ClusterSecretStores, see their sync status at a glance, and trigger a manual sync from the UI.
 
 Built for the Freelens **extension API v2** (Freelens 2.x, `engines.freelens: ^2.0.0`), with
 the build, type-check, test and lint layout of the reference template
@@ -67,7 +67,8 @@ stores and PushSecret do not support this action, so they have no menu item.
 
 - Freelens 2.0 or newer (extension API v2). Freelens 1.x needs a 1.x release of the
   extension.
-- A cluster with the External Secrets Operator installed (`external-secrets.io/v1`).
+- A cluster with the External Secrets Operator 0.16 or newer, the first release that serves
+  `external-secrets.io/v1` (see [Supported API versions](#supported-api-versions)).
 
 ## Installation
 
@@ -239,22 +240,29 @@ stylesheet next to the renderer entry.
 
 The extension supports **`external-secrets.io/v1`** for ExternalSecret, ClusterExternalSecret,
 SecretStore and ClusterSecretStore, and **`external-secrets.io/v1alpha1`** for PushSecret, the
-only version its CRD serves (one version per kind, with the "Not Available" page when the CRD
-is missing). `v1beta1` has been unserved since ESO 0.9 (2023); to add it later, follow the
-same per-version model/page/details pattern and list both versions in
-`createAvailableVersionPage`, newest first.
+only version its CRD serves, one version per kind.
+
+ESO 0.16 (April 2025) introduced `v1` for those four kinds, with the same schema as `v1beta1`,
+and ESO 0.17 (May 2025) stopped serving `v1beta1`. An older ESO serves `v1beta1` only: there
+the pages of the four kinds show "Not Available", and the kinds are still left out of the
+Custom Resources tree, because Freelens matches them by group and plural, not by version.
+Upgrade ESO to 0.16 or newer; until then, the command palette still opens Freelens's own list
+of each kind.
 
 ## Publishing a release
 
-```powershell
-pnpm bump-version patch        # or minor/major/prerelease
-pnpm build
-pnpm publish                   # requires npmjs.com authentication (NODE_AUTH_TOKEN)
-```
+A release goes through three workflows, and each of their jobs waits for a reviewer of its
+environment to approve it: `automated` for the first two, `publishing` for the last.
 
-The `.github/workflows/release.yaml` workflow also publishes automatically when a `v*` tag
-is pushed (it needs the npm registry `NPM_TOKEN` secret in the GitHub repository, or npm
-Trusted Publishing / provenance).
+1. **Automated npm version**, run from the Actions tab with the new version (`patch`, `minor`,
+   `major`, a prerelease or `X.Y.Z`), opens the pull request "Automated npm version vX.Y.Z",
+   which bumps `package.json`.
+2. Merging it starts **Automated tag**, which tags `main` as `vX.Y.Z`. If that run fails, a
+   comment `/tag` on the merged pull request runs it again.
+3. The tag starts **Release**, which builds and packs the extension, publishes it to npm with
+   provenance through npm trusted publishing (or with `NPM_TOKEN`, when the repository has that
+   secret), under the dist-tag `latest`, or `next` for a prerelease, and creates the GitHub
+   release with the tarball, its SBOM and their checksums.
 
 ## License
 

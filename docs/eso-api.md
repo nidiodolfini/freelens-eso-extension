@@ -30,10 +30,15 @@
 
 - **Grupo:** `external-secrets.io`
 - **Versões servidas:** `v1` (storage, atual) para ExternalSecret, ClusterExternalSecret,
-  SecretStore e ClusterSecretStore; `v1beta1` existe nesses CRDs com `served: false`
-  (deprecated — migração 0.9.x); `v1alpha1` (obsoleta) nesses kinds. **PushSecret** e
-  ClusterPushSecret só servem `v1alpha1`. Grupo auxiliar: `generators.external-secrets.io/v1alpha1`
-  (Generators). Verificado nos CRDs da release `helm-chart-2.14.0` (ESO 2.14.0).
+  SecretStore e ClusterSecretStore; `v1beta1` existe nesses CRDs com `served: false`.
+  **PushSecret** e ClusterPushSecret só servem `v1alpha1`. Grupo auxiliar:
+  `generators.external-secrets.io/v1alpha1` (Generators). Verificado nos CRDs da release
+  `helm-chart-2.14.0` (ESO 2.14.0).
+- **Histórico das versões** (CRDs em `config/crds/bases/` de cada tag): até o ESO 0.15, esses
+  quatro kinds servem `v1beta1` (storage) e, menos o ClusterExternalSecret, `v1alpha1`. O 0.16
+  (abril de 2025) trouxe o `v1` como storage, com o schema idêntico ao do `v1beta1` e sem
+  webhook de conversão, manteve o `v1beta1` servido e tirou o `v1alpha1`. O 0.17 (maio de
+  2025) deixou de servir o `v1beta1`. O PushSecret serve só `v1alpha1` em todas essas releases.
 - **Category comum:** `external-secrets` (agrupa todos os recursos no kubectl/UI).
 - **Short names:** ExternalSecret = `es`, ClusterExternalSecret = `ces`, PushSecret = `ps`,
   SecretStore = `ss`, ClusterSecretStore = `css`.
