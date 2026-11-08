@@ -1,0 +1,48 @@
+# The namespaced test objects, applied in the namespace of the session. They
+# use the fake provider and need no controller: the views read the API only.
+# The Secret of the ExternalSecret is created by the session, which needs the
+# uid of the ExternalSecret for its owner reference.
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: test
+spec:
+  provider:
+    fake:
+      data:
+      - key: /hello
+        value: world
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: test
+spec:
+  refreshInterval: 30s
+  secretStoreRef:
+    name: test
+    kind: SecretStore
+  target:
+    name: test
+  data:
+  - secretKey: hello
+    remoteRef:
+      key: /hello
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: test
+spec:
+  refreshInterval: 30s
+  secretStoreRefs:
+  - name: test
+    kind: SecretStore
+  selector:
+    secret:
+      name: test
+  data:
+  - match:
+      secretKey: hello
+      remoteRef:
+        remoteKey: /pushed/hello

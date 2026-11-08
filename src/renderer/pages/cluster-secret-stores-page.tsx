@@ -22,13 +22,17 @@ const sortingCallbacks = {
   age: (object: KubeObject) => object.getCreationTimestamp(),
 };
 
-const renderTableHeader: { title: string; sortBy: keyof typeof sortingCallbacks; className?: string }[] = [
-  { title: "Name", sortBy: "name" },
-  { title: "Provider", sortBy: "provider", className: styles.provider },
-  { title: "Status", sortBy: "status", className: styles.status },
-  { title: "Capabilities", sortBy: "capabilities", className: styles.capabilities },
-  { title: "Ready", sortBy: "ready", className: styles.ready },
-  { title: "Age", sortBy: "age", className: styles.age },
+type ColumnId = keyof typeof sortingCallbacks;
+
+// Every column has an id, the key of its sorting callback: the host makes a column with an id resizable, and lets the
+// user hide it from the menu of a configurable list, which keeps the list readable in a narrow window.
+const renderTableHeader: { title: string; sortBy: ColumnId; id: ColumnId; className?: string }[] = [
+  { title: "Name", sortBy: "name", id: "name" },
+  { title: "Provider", sortBy: "provider", id: "provider", className: styles.provider },
+  { title: "Status", sortBy: "status", id: "status", className: styles.status },
+  { title: "Capabilities", sortBy: "capabilities", id: "capabilities", className: styles.capabilities },
+  { title: "Ready", sortBy: "ready", id: "ready", className: styles.ready },
+  { title: "Age", sortBy: "age", id: "age", className: styles.age },
 ];
 
 // The columns mirror `kubectl get css`: STATUS, CAPABILITIES, READY.
@@ -40,6 +44,7 @@ export const ClusterSecretStoresPage = observer(() => {
       tableId={`${KubeObject.crd.plural}Table`}
       className={styles.page}
       store={store}
+      isConfigurable
       sortingCallbacks={sortingCallbacks}
       searchFilters={[(object: KubeObject) => object.getSearchFields()]}
       renderHeaderTitle={KubeObject.crd.title}
@@ -48,7 +53,7 @@ export const ClusterSecretStoresPage = observer(() => {
         <WithTooltip>{object.getName()}</WithTooltip>,
         <WithTooltip>{KubeObject.getProviderName(object) ?? "-"}</WithTooltip>,
         <Badge label={KubeObject.getStatusText(object)} className={KubeObject.getStatusClass(object)} />,
-        KubeObject.getCapabilities(object) ?? "-",
+        <WithTooltip>{KubeObject.getCapabilities(object) ?? "-"}</WithTooltip>,
         <BadgeBoolean value={KubeObject.getReady(object)} />,
         <KubeObjectAge object={object} key="age" />,
       ]}

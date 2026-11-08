@@ -1,0 +1,32 @@
+# The cluster-scoped test objects. Deleting the CRDs at the end of a session
+# deletes them too.
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: test
+spec:
+  provider:
+    fake:
+      data:
+      - key: /hello
+        value: world
+---
+apiVersion: external-secrets.io/v1
+kind: ClusterExternalSecret
+metadata:
+  name: test
+spec:
+  refreshTime: 1m
+  namespaceSelectors:
+  - matchLabels:
+      kubernetes.io/metadata.name: integration-tests
+  externalSecretSpec:
+    secretStoreRef:
+      name: test
+      kind: ClusterSecretStore
+    target:
+      name: test-everywhere
+    data:
+    - secretKey: hello
+      remoteRef:
+        key: /hello

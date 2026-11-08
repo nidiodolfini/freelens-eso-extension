@@ -54,6 +54,7 @@ pnpm type:check                # All of the programs below, in this order
 pnpm type:check:sources        # main and renderer, each with src/common/
 pnpm type:check:tests          # Tests and test support
 pnpm type:check:tooling        # Vite and Vitest configs, build plugins
+pnpm type:check:integration    # Integration tests
 pnpm type:check:environments   # Environment tests
 
 # Linting & formatting
@@ -67,6 +68,7 @@ pnpm knip:check           # Unused files, unused and unlisted dependencies (knip
 
 # Tests
 pnpm test:unit            # vitest
+pnpm test:integration     # vitest, against Freelens dev with a kind cluster ("Integration tests")
 
 # Build
 pnpm build                # Both Vite runs, without the type check
@@ -101,6 +103,8 @@ src/
   common/                            # Code both entries would import; empty today, its tsconfig.json stays
 test/freelens-extensions.ts          # Runtime stub of @freelensapp/extensions for Vitest
 environment-tests/                   # Probes for the per-environment programs
+integration/__tests__/               # Integration tests, run against Freelens dev over CDP, and their shared module
+integration/fixtures/                # Test objects of the integration tests
 build/                               # Vite plugins: host modules, standard decorators, CSS module declarations
 vite.config.mjs                      # The build, renderer and main
 docs/eso-api.md                      # The ESO API from the controller's Go types, which types.ts follows
@@ -229,10 +233,12 @@ has the mapping and the sources), not from memory:
 2. **The model**, `src/renderer/api/<kind>/<kind>-<version>.ts`, with the
    `declare kind` and `declare apiVersion` literals, its `KubeApi` and its
    `KubeObjectStore`.
-3. **The list page** in `src/renderer/pages/`, passed through
+3. **The list page** in `src/renderer/pages/`, a configurable list with an `id`
+   on every column ("Renderer Components"), passed through
    `createAvailableVersionPage` (newest version first when a kind has more than
    one) and registered in `clusterPages` and `clusterPageMenus`.
-4. **The details panel** in `src/renderer/details/`, registered in
+4. **The details panel** in `src/renderer/details/`, with none of the items the
+   host's details already show ("Renderer Components"), registered in
    `kubeObjectDetailItems` with `Renderer.K8sApi.detailsFor` and the model
    class.
 5. **Menu items** in `src/renderer/menus/`, registered in `kubeObjectMenuItems`
@@ -242,9 +248,16 @@ has the mapping and the sources), not from memory:
    ClusterExternalSecret, and not for the stores or PushSecret
    (`docs/eso-api.md`, section 4.2).
 6. **`customResources`**: the model class of every version that has a page.
-7. **Tests** for the static helpers, next to the model; a member of the host
-   that a test reaches goes into the stub, as small as the test needs.
+7. **Tests** for the static helpers, next to the model, and the kind's cases in
+   `src/renderer/pages/pages.test.tsx` and
+   `src/renderer/details/details.test.tsx`, with the printer columns of its CRD
+   in `hostItems`; a member of the host that a test reaches goes into the stub,
+   as small as the test needs.
 8. **A test object** in `examples/eso/`, and its row in `README.md`.
+9. **The integration tests**: the plural of the kind in `crdPlurals` of
+   `integration/__tests__/extension-helpers.ts`, a test object named `test` in
+   `integration/fixtures/`, and the kind's entry in `kindViews` of
+   `integration/__tests__/eso.tests.ts` ("Integration tests").
 
 Then check the result in Freelens with the checkout installed from its
 directory (`README.md`, "Development loop"): the page lists the test object,
@@ -294,6 +307,32 @@ from the Custom Resources tree.
   `StoreDetails` serves both store kinds, and `ForceSyncMenuItem` serves
   ExternalSecret and ClusterExternalSecret, picking the store to patch by the
   `kind` of the object, a literal on each model.
+- A details panel shows only what the host's details leave out. Next to it,
+  for every kind with a CRD, the host renders its own details of a custom
+  resource: the printer columns of the CRD, without Age, under the names that
+  `startCase` gives them, and the conditions, whose reason and message are only
+  in a tooltip. So a panel shows no printer column and no conditions again;
+  it shows the fields the columns leave out, the references as links, and the
+  message of the Ready condition. A link to an object whose name is a printer
+  column is named after the spec field, such as Secret Store Ref, so that it
+  is not read as the column a second time. `hostItems` in
+  `src/renderer/details/details.test.tsx` has the printer columns of every kind,
+  and the test fails on a panel item among them.
+- A list page is a configurable list (`isConfigurable`) whose every column has
+  an `id`, the key of its sorting callback, as the host's own lists, such as
+  Jobs, have it: the host makes a column with an id resizable, keeps its width
+  per `tableId`, and lets the user hide it from the menu of the list, which is
+  how a narrow window stays readable. A text cell is in `WithTooltip`, which
+  shows a cut value whole, and a time is shown as `kubectl get` prints a date
+  column, the time since it, by `LastSync` in `src/renderer/pages/last-sync.tsx`.
+  `src/renderer/pages/pages.test.tsx` checks the columns of every page, their
+  ids, and a cell for every column; the stub's `KubeObjectListLayout` is a mock,
+  so that the test reads the props a page passes.
+- A menu item that patches an object catches the patch: it runs in `onClick`,
+  where an error reaches no error boundary, so a failed patch, such as a 403
+  for a user without the RBAC to patch the object, is shown with
+  `Notifications.error`, naming the action, the kind and the object, and the
+  promise never rejects.
 - `SecretEsoDetails` is registered with `detailsFor(Renderer.K8sApi.Secret, ...)`,
   on a built-in kind of the host, whose `apiVersions` the helper reads from
   `apiBase`. It reads the owner reference and the managed label of the Secret
@@ -379,6 +418,9 @@ or not visibly at all.
   keyed on the array is computed once.
 - **Every page, details panel and menu item inside an error boundary**
   ("Renderer Components").
+- **A menu item catches what it patches.** An error of `onClick` reaches no
+  error boundary: an uncaught failed patch is an unhandled rejection, and the
+  user sees nothing ("Renderer Components").
 - **A cluster page gets the extension from its registration.** The host passes
   `params` only ("Renderer Components").
 - **An ESM `main`, and the entries in `package.json` unchanged while
@@ -485,13 +527,14 @@ Main code runs in Node, renderer code in a browser page, and common code in
 both. Each is type-checked in a program of its own, so that an API the runtime
 does not have fails `pnpm type:check` rather than the extension:
 
-| Config                       | lib                       | types                 | Files                                                              |
-| ---------------------------- | ------------------------- | --------------------- | ------------------------------------------------------------------ |
-| `src/main/tsconfig.json`     | ES2024                    | `node`                | `src/main/`, `src/common/`                                         |
-| `src/renderer/tsconfig.json` | ES2024, DOM, DOM.Iterable | `vite/client`         | `src/renderer/`, `src/common/`                                     |
-| `src/common/tsconfig.json`   | ES2024, WebWorker         | none                  | `src/common/`                                                      |
-| `src/tsconfig.json`          | ES2024, DOM, DOM.Iterable | `node`, `vite/client` | `*.test.ts(x)` under `src/`, and `test/`                           |
-| `tsconfig.json`              | ES2024                    | `node`                | `vite.config.mjs`, `vitest.config.ts`, `svgo.config.mjs`, `build/` |
+| Config                       | lib                       | types                             | Files                                                              |
+| ---------------------------- | ------------------------- | --------------------------------- | ------------------------------------------------------------------ |
+| `src/main/tsconfig.json`     | ES2024                    | `node`                            | `src/main/`, `src/common/`                                         |
+| `src/renderer/tsconfig.json` | ES2024, DOM, DOM.Iterable | `vite/client`                     | `src/renderer/`, `src/common/`                                     |
+| `src/common/tsconfig.json`   | ES2024, WebWorker         | none                              | `src/common/`                                                      |
+| `src/tsconfig.json`          | ES2024, DOM, DOM.Iterable | `node`, `vite/client`             | `*.test.ts(x)` under `src/`, and `test/`                           |
+| `integration/tsconfig.json`  | ES2024, DOM, DOM.Iterable | `node`, `@freelensapp/extensions` | `integration/`                                                     |
+| `tsconfig.json`              | ES2024                    | `node`                            | `vite.config.mjs`, the Vitest configs, `svgo.config.mjs`, `build/` |
 
 All of them extend `tsconfig.base.json`: `strict`, `moduleResolution: Bundler`,
 `useDefineForClassFields`, `noUncheckedSideEffectImports` and `skipLibCheck`
@@ -558,6 +601,46 @@ Tests import what they use from `vitest`
 the globals. `globals: true` stays on at runtime only, because React Testing
 Library registers its automatic cleanup only when `afterEach` is a global.
 
+### Integration tests
+
+The integration tests follow the template, freelensapp/freelens-example-extension,
+and the fluxcd extension. They run in this repository, under their own Vitest
+(`vitest.integration.config.ts`, `pnpm test:integration`), against Freelens
+started with `pnpm dev` from a freelensapp/freelens checkout, attached with
+Playwright's `chromium.connectOverCDP` on the port that script opens, so they
+need no package of Freelens. `integration-tests.yaml` builds the extension,
+checks out Freelens at each release tag of its matrix (`v2.0.0`), starts
+`pnpm dev` under `xvfb-run` with a fresh profile seeded with a kubeconfig of a
+kind cluster, and runs the tests. Every test file is a session of its own on
+the one app, and fails on any error logged by either process.
+
+- `extensions.tests.ts` uninstalls whatever installation of the extension the
+  app has, such as the one from npm, and installs this checkout in place from
+  the Extensions page.
+- `eso.tests.ts` applies the CRDs of the five kinds of one ESO release,
+  `TEST_ESO_VERSION` or the release the types follow, from the release's
+  sources and without the controller, a test object of each kind
+  (`integration/fixtures/`), and the Secret of the ExternalSecret, with the
+  managed label and an owner reference, as the controller would write it. The
+  CRDs of the stores are larger than the annotation of a client-side apply, so
+  they are applied server-side. The session opens every page through
+  `Renderer.Navigation.navigate`, because the sidebar renders the group of the
+  kinds collapsed, and checks for each kind that the list shows the test
+  object, that the details show the extension's panel with the object in its
+  API version and no error page, and the extension's menu items. It clicks
+  Force Sync on the ExternalSecret and the ClusterExternalSecret and reads the
+  annotation back with kubectl, and follows the links from the ExternalSecret
+  to its store and to its Secret, and back.
+
+Every kubectl call names the context of the kind cluster, `kind-<name>` with
+`TEST_KIND_CLUSTER_NAME` (`kind` by default), so a run never acts on the current
+context. A session deletes the namespace `integration-tests` and the five ESO
+CRDs, and with them every object of those kinds on the cluster: run it only
+against a kind cluster with nothing worth keeping, never one with ESO in use.
+Outside CI a session skips with a warning when Freelens dev does not answer or
+the cluster is not reachable; in CI the run fails instead. The other variables
+are those of the template: `FREELENS_CDP_URL` and `FREELENS_MAIN_LOG`.
+
 ## Lint and CI
 
 ### Biome
@@ -574,10 +657,11 @@ matches no file. The Biome commands in `.trunk/trunk.yaml` pass
 `--vcs-use-ignore-file=false` for the same reason, and no `--config-path`,
 which would turn the parser options off.
 
-`biome.jsonc` leaves out `.svg` files, the Kubernetes manifests in `examples/`,
-whose sequences stay unindented as kubectl writes them and which yamlfmt
-formats with `examples/.yamlfmt.yaml`, and `pnpm-lock.yaml`,
-`pnpm-workspace.yaml` and `.trunk/`, which pnpm and Trunk write.
+`biome.jsonc` leaves out `.svg` files, the Kubernetes manifests in `examples/`
+and `integration/fixtures/`, whose sequences stay unindented as kubectl writes
+them and which yamlfmt formats with the `.yamlfmt.yaml` of their directory, and
+`pnpm-lock.yaml`, `pnpm-workspace.yaml` and `.trunk/`, which pnpm and Trunk
+write. The integration tests may import `vitest` and run in Node.
 
 Renovate updates Biome, and `biome-migrate.yaml` runs `biome migrate` on the
 Renovate branch so that the bump and its migration are one pull request.
@@ -591,8 +675,9 @@ unused; remove it rather than ignore it. The host-provided modules are in
 `ignoreDependencies`: they are devDependencies for their types, which the
 production pass would report as unlisted. The Vite plugin is off and
 `vite.config.mjs` is an entry instead, `svgo` is on for `svgo.config.mjs`,
-the probes in `environment-tests/` are entries, `dist/**` is ignored so that a
-built bundle is not analysed, and `project` leaves out the CSS module
+the probes in `environment-tests/` are entries, the Vitest plugin adds the
+integration tests, `kubectl` is an ignored binary, `dist/**` is ignored so that
+a built bundle is not analysed, and `project` leaves out the CSS module
 declarations, which knip would otherwise report as unused.
 
 ### Workflows
@@ -603,6 +688,7 @@ declarations, which knip would otherwise report as unused.
 | `check.yaml`                                              | `pnpm build`, `pnpm lint:check`, `pnpm knip:check`                                                                                    |
 | `unit-tests.yaml`                                         | `pnpm test:unit`                                                                                                                      |
 | `trunk-check.yaml`                                        | `trunk check --all`                                                                                                                   |
+| `integration-tests.yaml`                                  | the integration tests, against Freelens dev with a kind cluster ("Integration tests")                                                 |
 | `mise-lock-check.yaml`                                    | on a change to `mise.lock`: no checksum changed for an unchanged tool version                                                         |
 | `biome-migrate.yaml`                                      | `biome migrate` on a Renovate branch                                                                                                  |
 | `npm-audit.yaml`, `npm-dedupe.yaml`, `trunk-upgrade.yaml` | scheduled maintenance, each in an `automated/*` pull request; `/rerun` by a collaborator reruns one                                   |
@@ -610,9 +696,10 @@ declarations, which knip would otherwise report as unused.
 | `claude.yaml`, `claude-task.yaml`                         | Claude Code on `@claude` and on dispatch ("GitHub Actions (Claude Code Action) Rules")                                                |
 
 The type check has a workflow of its own, which runs every program, tests,
-tooling and environment tests included, and `check.yaml` builds without the
-type check, so it does not run twice. The integration tests of the template,
-which drive Freelens dev over CDP, are not part of this repository yet.
+tooling, integration and environment tests included, and `check.yaml` builds
+without the type check, so it does not run twice. `integration-tests.yaml` has
+a job `integration tests` that waits for every job of its matrix and fails when
+one did not succeed, the one check that branch rules need to require.
 
 The workflows that act on a comment (`/tag`, `/rerun`) require the comment's
 author to be OWNER, MEMBER or COLLABORATOR; `claude.yaml` goes further and
