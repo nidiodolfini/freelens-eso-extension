@@ -7,16 +7,20 @@
 
 ## Fontes
 
-| Fonte                                        | URL                                                                                                                          |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Tipos Go v1 (ExternalSecret)                 | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/externalsecret_types.go>   |
-| Tipos Go v1 (SecretStore/ClusterSecretStore) | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/secretstore_types.go>      |
-| Tipos Go v1beta1 (legado)                    | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1beta1/secretstore_types.go> |
-| Docs: ExternalSecret                         | <https://external-secrets.io/latest/api/externalsecret/>                                                                     |
-| Docs: SecretStore                            | <https://external-secrets.io/latest/api/secretstore/>                                                                        |
-| Docs: ClusterSecretStore                     | <https://external-secrets.io/latest/api/clustersecretstore/>                                                                 |
-| Spec completa (todos os types)               | <https://external-secrets.io/latest/api/spec/>                                                                               |
-| FAQ (force-sync, status)                     | <https://external-secrets.io/latest/introduction/faq/>                                                                       |
+| Fonte                                        | URL                                                                                                                               |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Tipos Go v1 (ExternalSecret)                 | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/externalsecret_types.go>        |
+| Tipos Go v1 (SecretStore/ClusterSecretStore) | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/secretstore_types.go>           |
+| Tipos Go v1 (ClusterExternalSecret)          | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/clusterexternalsecret_types.go> |
+| Tipos Go v1alpha1 (PushSecret)               | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1alpha1/pushsecret_types.go>      |
+| Tipos Go v1beta1 (legado)                    | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1beta1/secretstore_types.go>      |
+| Docs: ExternalSecret                         | <https://external-secrets.io/latest/api/externalsecret/>                                                                          |
+| Docs: ClusterExternalSecret                  | <https://external-secrets.io/latest/api/clusterexternalsecret/>                                                                   |
+| Docs: PushSecret                             | <https://external-secrets.io/latest/api/pushsecret/>                                                                              |
+| Docs: SecretStore                            | <https://external-secrets.io/latest/api/secretstore/>                                                                             |
+| Docs: ClusterSecretStore                     | <https://external-secrets.io/latest/api/clustersecretstore/>                                                                      |
+| Spec completa (todos os types)               | <https://external-secrets.io/latest/api/spec/>                                                                                    |
+| FAQ (force-sync, status)                     | <https://external-secrets.io/latest/introduction/faq/>                                                                            |
 
 > A URL `https://external-secrets.io/latest/api/status/` retorna **404** — não existe página
 > de status separada na doc atual. A documentação de status está nos tipos Go, nas páginas de
@@ -25,10 +29,14 @@
 ## Visão geral
 
 - **Grupo:** `external-secrets.io`
-- **Versões servidas:** `v1` (storage, atual), `v1beta1` (deprecated/unserved — migração 0.9.x),
-  `v1alpha1` (obsoleta). Grupo auxiliar: `generators.external-secrets.io/v1alpha1` (Generators).
+- **Versões servidas:** `v1` (storage, atual) para ExternalSecret, ClusterExternalSecret,
+  SecretStore e ClusterSecretStore; `v1beta1` existe nesses CRDs com `served: false`
+  (deprecated — migração 0.9.x); `v1alpha1` (obsoleta) nesses kinds. **PushSecret** e
+  ClusterPushSecret só servem `v1alpha1`. Grupo auxiliar: `generators.external-secrets.io/v1alpha1`
+  (Generators). Verificado nos CRDs da release `helm-chart-2.14.0` (ESO 2.14.0).
 - **Category comum:** `external-secrets` (agrupa todos os recursos no kubectl/UI).
-- **Short names:** ExternalSecret = `es`, SecretStore = `ss`, ClusterSecretStore = `css`.
+- **Short names:** ExternalSecret = `es`, ClusterExternalSecret = `ces`, PushSecret = `ps`,
+  SecretStore = `ss`, ClusterSecretStore = `css`.
 
 ### Print columns (o que o `kubectl get` mostra — e o que a UI deve espelhar)
 
@@ -51,6 +59,22 @@
 | `Status`       | `.status.conditions[?(@.type=="Ready")].reason` |
 | `Capabilities` | `.status.capabilities`                          |
 | `Ready`        | `.status.conditions[?(@.type=="Ready")].status` |
+
+`ClusterExternalSecret`:
+
+| Coluna             | JSONPath                                        |
+| ------------------ | ----------------------------------------------- |
+| `Store`            | `.spec.externalSecretSpec.secretStoreRef.name`  |
+| `Refresh Interval` | `.spec.refreshTime`                             |
+| `Ready`            | `.status.conditions[?(@.type=="Ready")].status` |
+
+`PushSecret`:
+
+| Coluna      | JSONPath                                        |
+| ----------- | ----------------------------------------------- |
+| `AGE`       | `.metadata.creationTimestamp`                   |
+| `Status`    | `.status.conditions[?(@.type=="Ready")].reason` |
+| `Last Sync` | `.status.refreshTime`                           |
 
 ---
 
@@ -459,3 +483,176 @@ await store.patch(
 
 Depois do patch, o usuário vê `Ready=True/SecretSynced` e `refreshTime` atualizado quando a
 sincronização termina; em caso de erro, `Ready=False` com `SecretSyncedError` + message.
+
+---
+
+## 5. `ClusterExternalSecret` (cluster-wide)
+
+Cria um `ExternalSecret` com o mesmo spec em cada namespace selecionado, e acompanha em quais
+deu certo. Tipos Go em `apis/externalsecrets/v1/clusterexternalsecret_types.go`.
+
+```yaml
+apiVersion: external-secrets.io/v1
+kind: ClusterExternalSecret
+metadata:
+  name: hello-everywhere
+spec:
+  externalSecretName: hello-everywhere # default = metadata.name
+  refreshTime: 1m # json do campo Go RefreshInterval: com que frequência rechecar os namespaces
+  namespaceSelectors: # ORed; namespaceSelector e namespaces (singular/lista) estão deprecated
+    - matchLabels:
+        kubernetes.io/metadata.name: default
+  externalSecretMetadata: # labels/annotations dos ExternalSecrets criados
+    labels: {}
+  externalSecretSpec: # ExternalSecretSpec completo (seção 1.1)
+    secretStoreRef:
+      name: fake-cluster-store
+      kind: ClusterSecretStore
+    target:
+      name: hello-everywhere
+    data:
+      - secretKey: hello
+        remoteRef:
+          key: /hello
+status:
+  externalSecretName: hello-everywhere
+  provisionedNamespaces: [default]
+  failedNamespaces:
+    - namespace: locked
+      reason: secret store not found
+  conditions:
+    - type: Ready
+      status: "False"
+      message: one or more namespaces failed
+```
+
+### 5.1 `spec` (ClusterExternalSecretSpec)
+
+| Campo (json)             | Tipo Go                   | Obrigatório?                     | Notas                                                                          |
+| ------------------------ | ------------------------- | -------------------------------- | ------------------------------------------------------------------------------ |
+| `externalSecretSpec`     | `ExternalSecretSpec`      | **obrigatório**                  | o spec dos ExternalSecrets criados                                             |
+| `externalSecretName`     | `string`                  | opcional (default metadata.name) | nome dos ExternalSecrets criados                                               |
+| `externalSecretMetadata` | `ExternalSecretMetadata`  | opcional                         | `annotations`, `labels` dos ExternalSecrets criados                            |
+| `namespaceSelector`      | `*metav1.LabelSelector`   | opcional, **deprecated**         | use `namespaceSelectors`                                                       |
+| `namespaceSelectors`     | `[]*metav1.LabelSelector` | opcional                         | ORed entre si                                                                  |
+| `namespaces`             | `[]string`                | opcional, **deprecated**         | nomes exatos, ORed com os selectors                                            |
+| `refreshTime`            | `*metav1.Duration`        | opcional, sem default            | campo Go `RefreshInterval`; é a coluna `Refresh Interval` do `kubectl get ces` |
+
+### 5.2 `status` (ClusterExternalSecretStatus)
+
+```go
+type ClusterExternalSecretStatus struct {
+    ExternalSecretName    string                                  `json:"externalSecretName,omitempty"`
+    FailedNamespaces      []ClusterExternalSecretNamespaceFailure `json:"failedNamespaces,omitempty"`      // {namespace, reason}
+    ProvisionedNamespaces []string                                `json:"provisionedNamespaces,omitempty"`
+    Conditions            []ClusterExternalSecretStatusCondition  `json:"conditions,omitempty"`
+}
+
+type ClusterExternalSecretStatusCondition struct {
+    Type    ClusterExternalSecretConditionType `json:"type"`   // "Ready"
+    Status  corev1.ConditionStatus             `json:"status"` // True | False | Unknown
+    Message string                             `json:"message,omitempty"`
+}
+```
+
+> A condition do CES **não tem `reason` nem `lastTransitionTime`**: só `message`, que nomeia os
+> namespaces que falharam. Por isso a UI mostra `Ready` + `Message`, e não uma coluna `Status`.
+
+O force-sync vale para o CES e propaga aos ExternalSecrets filhos (seção 4.2).
+
+---
+
+## 6. `PushSecret` (namespaced, `v1alpha1`)
+
+O caminho inverso: lê um Secret do cluster (ou um generator) e **empurra** os valores para um ou
+mais stores. Tipos Go em `apis/externalsecrets/v1alpha1/pushsecret_types.go`; só `v1alpha1` é
+servida. Short name `ps`.
+
+```yaml
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: hello-world
+  namespace: default
+spec:
+  refreshInterval: 1h0m0s # default
+  updatePolicy: Replace # Replace (default) | IfNotExists
+  deletionPolicy: None # None (default) | Delete
+  secretStoreRefs: # obrigatório; por nome ou labelSelector
+    - name: fake-store
+      kind: SecretStore # SecretStore (default) | ClusterSecretStore
+  selector: # obrigatório; exatamente um de secret | generatorRef
+    secret:
+      name: hello-world # ou selector: {matchLabels: ...}
+  data: # chave a chave
+    - match:
+        secretKey: hello # omitido = o Secret inteiro
+        remoteRef:
+          remoteKey: /pushed/hello
+          property: value
+      conversionStrategy: None # None (default) | ReverseUnicode
+  dataTo: # em massa
+    - storeRef: {name: fake-store}
+      match: {regexp: "^DB_"}
+      remoteKey: /bundle # com remoteKey, tudo num JSON; sem, uma chave remota por chave
+      rewrite: [{regexp: {source: "^DB_", target: ""}}]
+status:
+  refreshTime: "2024-01-01T00:00:00Z"
+  syncedResourceVersion: "1-abc"
+  syncedPushSecrets: # store -> remoteKey -> PushSecretData
+    fake-store:
+      /pushed/hello: {match: {secretKey: hello, remoteRef: {remoteKey: /pushed/hello}}}
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Synced
+      message: PushSecret synced successfully
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+```
+
+### 6.1 `spec` (PushSecretSpec)
+
+| Campo (json)      | Tipo Go                    | Obrigatório?               | Notas                                                                                                          |
+| ----------------- | -------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `refreshInterval` | `*metav1.Duration`         | opcional (default 1h0m0s)  |                                                                                                                |
+| `secretStoreRefs` | `[]PushSecretStoreRef`     | **obrigatório**            | `{name?, labelSelector?, kind? (default SecretStore)}`                                                         |
+| `updatePolicy`    | `PushSecretUpdatePolicy`   | opcional (default Replace) | `Replace` \| `IfNotExists`                                                                                     |
+| `deletionPolicy`  | `PushSecretDeletionPolicy` | opcional (default None)    | `Delete` \| `None`                                                                                             |
+| `selector`        | `PushSecretSelector`       | **obrigatório**            | exatamente um: `secret {name? \| selector?}` ou `generatorRef {apiVersion?, kind, name}`                       |
+| `data`            | `[]PushSecretData`         | opcional                   | `match {secretKey?, remoteRef {remoteKey, property?}}`, `metadata` (JSON), `conversionStrategy`                |
+| `dataTo`          | `[]PushSecretDataTo`       | opcional                   | `storeRef`, `remoteKey?`, `match.regexp?`, `rewrite[] {regexp \| transform}`, `metadata`, `conversionStrategy` |
+| `template`        | `*ExternalSecretTemplate`  | opcional                   | blueprint do Secret; a extensão não lê                                                                         |
+
+### 6.2 `status` (PushSecretStatus)
+
+```go
+type PushSecretStatus struct {
+    RefreshTime           metav1.Time                 `json:"refreshTime,omitempty"`
+    SyncedResourceVersion string                      `json:"syncedResourceVersion,omitempty"`
+    SyncedPushSecrets     SyncedPushSecretsMap        `json:"syncedPushSecrets,omitempty"` // map[store]map[remoteKey]PushSecretData
+    Conditions            []PushSecretStatusCondition `json:"conditions,omitempty"`
+}
+
+type PushSecretStatusCondition struct {
+    Type               PushSecretConditionType `json:"type"`   // "Ready"
+    Status             corev1.ConditionStatus  `json:"status"`
+    Reason             string                  `json:"reason,omitempty"`
+    Message            string                  `json:"message,omitempty"`
+    LastTransitionTime metav1.Time             `json:"lastTransitionTime,omitempty"`
+}
+```
+
+Reasons (constantes do controller): `Synced` (Ready=True), `Errored` (Ready=False),
+`SourceDeleted` (o Secret de origem sumiu e os remotos foram limpos, com `deletionPolicy: Delete`).
+
+A anotação `external-secrets.io/force-sync` não está documentada para PushSecret; a extensão
+não oferece Force Sync nesse kind.
+
+---
+
+## 7. O caminho de volta: do Secret ao ExternalSecret
+
+Um Secret gerado pelo ESO carrega (seção 1.4) a label `reconcile.external-secrets.io/managed: "true"`
+e, com `creationPolicy: Owner` (default), um `ownerReference` de `kind: ExternalSecret`. A
+extensão lê os dois do próprio Secret para mostrar, nos detalhes dele, um link para o
+ExternalSecret dono; com `Orphan`, `Merge` ou `CreateOrMerge` não há owner e só a label aparece.
