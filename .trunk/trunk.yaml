@@ -143,10 +143,12 @@ lint:
       paths:
         - "**"
         - "!examples/**"
+        - "!integration/fixtures/**"
     - linters:
         - biome
       paths:
         - examples/**
+        - integration/fixtures/**
     # Vitest/testing-library snapshots are generated artifacts whose DOM
     # serializer emits whitespace-only lines (e.g. indented empty elements and
     # inline SVG <style> blocks). git-diff-check only flags such lines when they

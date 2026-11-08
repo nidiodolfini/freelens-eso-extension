@@ -39,6 +39,7 @@
       "!**/*.svg",
       "**/build/*.{js,cjs,mjs}",
       "!**/examples/**",
+      "!**/integration/fixtures/**",
       "!**/pnpm-lock.yaml",
       "!**/pnpm-workspace.yaml"
     ]
@@ -174,8 +175,9 @@
     },
     {
       // Tests and test support, which import their Vitest functions from
-      // "vitest" explicitly.
-      "includes": ["**/src/**/*.test.*", "**/test/**"],
+      // "vitest" explicitly. The integration tests run in Node and drive
+      // Freelens dev over CDP.
+      "includes": ["**/integration/**", "**/src/**/*.test.*", "**/test/**"],
       "linter": {
         "rules": {
           "style": {

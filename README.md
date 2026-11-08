@@ -31,16 +31,22 @@ Five cluster pages, one per ESO resource, grouped under a single sidebar entry:
 
 Sync status comes from each resource's `Ready` condition and is rendered as a colored badge
 (`success` / `error` / `warning`) with the controller's reason (`SecretSynced`,
-`SecretSyncedError`, `Valid`, `ValidationFailed`, `Synced`, `Errored`, ...). When the CRD is
-not installed in the cluster, the page shows a friendly "Not Available" message.
+`SecretSyncedError`, `Valid`, `ValidationFailed`, `Synced`, `Errored`, ...). Last Sync shows
+the time since the last sync, as `kubectl get` does, with the date in its tooltip. When the CRD
+is not installed in the cluster, the page shows a friendly "Not Available" message.
 
-Each resource also gets a details panel in the drawer. An ExternalSecret shows its target
-Secret and its store as links to their details, the creation and deletion policies, the
-refresh policy and interval, the status with the message of a failed sync, the last sync time,
-the synced resource version, the conditions, and its data mappings (`data` and `dataFrom`). A
-ClusterExternalSecret adds the namespace selectors and the provisioned and failed namespaces;
-a PushSecret its source Secret, its stores, its update and deletion policies and its `data`
-and `dataTo` mappings.
+The columns of every list can be resized, and hidden from the menu at the right of the
+header, which keeps a list readable in a narrow window; a cut value shows whole in its tooltip.
+
+Each resource also gets a details panel in the drawer, next to Freelens's own details of a
+custom resource, which already show the columns of the CRD and the conditions; the panel shows
+what they leave out. An ExternalSecret shows its target Secret and its store as links to their
+details, the creation and deletion policies, the refresh policy, the message of a failed sync,
+the synced resource version, and its data mappings (`data` and `dataFrom`). A
+ClusterExternalSecret shows the ExternalSecrets it creates, its store, the namespace selectors
+and the provisioned and failed namespaces; a PushSecret its source Secret and its stores as
+links, its update and deletion policies and its `data` and `dataTo` mappings; a store its
+provider, controller, retry settings and the message of a failed validation.
 
 The details of a core **Secret** that the operator manages gain an "External Secrets" panel
 with a link back to the ExternalSecret that owns it, read from the Secret's owner reference and
@@ -54,7 +60,8 @@ action, which writes a fresh timestamp to the `external-secrets.io/force-sync` a
 the same as `kubectl annotate es <name> force-sync=$(date +%s) --overwrite`. The controller
 reconciles whenever the annotation changes, so the secret is refreshed immediately, and a
 ClusterExternalSecret propagates it to the ExternalSecrets it manages. A notification confirms
-the request. The stores and PushSecret do not support this action, so they have no menu item.
+the request, or shows why it failed, such as a missing permission to patch the object. The
+stores and PushSecret do not support this action, so they have no menu item.
 
 ## Requirements
 
@@ -120,8 +127,9 @@ Node.js 24 (`.nvmrc`, `mise.toml`) and pnpm 12 through corepack (`packageManager
 
 ```powershell
 pnpm install
-pnpm type:check     # main, renderer, tests, tooling and environment tests, one program each
+pnpm type:check     # main, renderer, tests, tooling, integration and environment tests, one program each
 pnpm test:unit      # vitest
+pnpm test:integration # against Freelens dev and a kind cluster, see "Integration tests"
 pnpm build          # vite build (renderer) and vite build --mode main -> dist/
 pnpm dev            # both builds in watch mode, for a directory install
 pnpm biome:fix      # formatting/lint (TypeScript, TSX, JSON, CSS, SCSS, HTML, YAML, Markdown)
@@ -147,6 +155,48 @@ It rebuilds the extension whenever a source file changes, and Freelens reloads t
 extension after each rebuild, without a restart and without packing. Stop it with
 `ctrl`+`C`. A change to `main` or `renderer` in `package.json` needs Freelens restarted once.
 
+### Integration tests
+
+The integration tests drive Freelens dev, started from a
+[freelensapp/freelens](https://github.com/freelensapp/freelens) checkout, against a
+[kind](https://kind.sigs.k8s.io/) cluster, as those of the Freelens example extension do. In
+the Freelens checkout:
+
+```sh
+pnpm dev
+```
+
+Freelens dev lists no cluster until a kubeconfig is added in Preferences > Kubernetes >
+Kubeconfig Syncs. Add one with the kind cluster alone, for example:
+
+```sh
+kubectl config view --minify --flatten --context kind-kind > ~/kind-kind.kubeconfig
+```
+
+Then, with the kind cluster running, in this repository:
+
+```sh
+pnpm build
+pnpm test:integration
+```
+
+The tests install the checkout in place, replacing any other installation of the extension in
+Freelens dev. They apply the CRDs of ExternalSecret, ClusterExternalSecret, PushSecret,
+SecretStore and ClusterSecretStore from the ESO release, without the controller, and delete
+them at the end, and with them every object of those kinds: use a kind cluster with nothing
+worth keeping, never one where ESO is in use. Every kubectl call names the kind context, so
+the tests never act on the current context. Without Freelens dev or the cluster the tests are
+skipped.
+
+Optional variables:
+
+- `TEST_KIND_CLUSTER_NAME`: the kind cluster, `kind` by default, used through the context
+  `kind-<name>`.
+- `TEST_ESO_VERSION`: the ESO release whose CRDs are applied, `v2.14.0` by default.
+- `FREELENS_CDP_URL`: the CDP endpoint of Freelens dev, `http://127.0.0.1:9223` by default.
+- `FREELENS_MAIN_LOG`: a log of the main process to check for errors, such as its `lens.log`.
+  Without it only the renderer's errors are checked.
+
 ## Project structure
 
 ```text
@@ -156,6 +206,7 @@ build/vite-plugin-standard-decorators.mjs        # plugin: lowers standard decor
 build/vite-plugin-css-module-declarations.mjs    # plugin: writes the *.module.d.scss.ts declarations
 tsconfig.base.json                               # compiler options shared by every program
 environment-tests/                               # probes that keep Node out of the renderer and the DOM out of main
+integration/                                     # integration tests against Freelens dev, and their test objects
 src/
   main/index.ts                                  # main entry (stateless)
   renderer/index.tsx                             # registrations: 5 pages, details, menu, customResources
