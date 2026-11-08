@@ -1,8 +1,8 @@
 # freelens-eso-extension
 
 A Freelens extension for the [External Secrets Operator](https://external-secrets.io/) (ESO):
-browse ExternalSecrets, SecretStores and ClusterSecretStores, see their sync status at a
-glance, and trigger a manual sync from the UI.
+browse ExternalSecrets, ClusterExternalSecrets, PushSecrets, SecretStores and
+ClusterSecretStores, see their sync status at a glance, and trigger a manual sync from the UI.
 
 Built for the Freelens **extension API v2** (Freelens 2.x, `engines.freelens: ^2.0.0`), with
 the build, type-check, test and lint layout of the reference template
