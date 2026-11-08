@@ -17,14 +17,16 @@ export class ClusterExternalSecret extends Renderer.K8sApi.LensExtensionKubeObje
   ClusterExternalSecretSpec
 > {
   declare kind: "ClusterExternalSecret";
-  declare apiVersion: "external-secrets.io/v1";
+  declare apiVersion: "external-secrets.io/v1" | "external-secrets.io/v1beta1";
 
   static readonly kind = "ClusterExternalSecret";
   static readonly namespaced = false;
   static readonly apiBase = "/apis/external-secrets.io/v1/clusterexternalsecrets";
 
   static readonly crd: EsoKubeObjectCRD = {
-    apiVersions: ["external-secrets.io/v1"],
+    // An ESO older than 0.16 serves v1beta1 in place of v1, with the same schema. The host picks the first version
+    // that the cluster serves.
+    apiVersions: ["external-secrets.io/v1", "external-secrets.io/v1beta1"],
     plural: "clusterexternalsecrets",
     singular: "clusterexternalsecret",
     shortNames: ["ces"],

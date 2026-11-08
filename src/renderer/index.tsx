@@ -28,9 +28,10 @@ import { ExternalSecretsPage } from "./pages/external-secrets-page";
 import { PushSecretsPage } from "./pages/push-secrets-page";
 import { SecretStoresPage } from "./pages/secret-stores-page";
 
-// Each kind serves a single API version, external-secrets.io/v1 for all but PushSecret, which is at v1alpha1. The
-// pages still go through createAvailableVersionPage so that each of them shows the "Not Available" page when the CRD
-// is not installed in the cluster, and follows the host's API registry as it loads.
+// Each kind has one model. Four of them serve external-secrets.io/v1, and v1beta1 on an ESO older than 0.16, which
+// serves it in place of v1 with the same schema; PushSecret is at v1alpha1. The pages still go through
+// createAvailableVersionPage so that each of them shows the "Not Available" page when the CRD is not installed in the
+// cluster, and follows the host's API registry as it loads.
 const ExternalSecretsPageAvailable = createAvailableVersionPage("External Secrets", [
   { kubeObjectClass: ExternalSecret, PageComponent: ExternalSecretsPage },
 ]);

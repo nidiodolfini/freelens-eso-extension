@@ -120,7 +120,9 @@ A model is a subclass of `Renderer.K8sApi.LensExtensionKubeObject`, one file
 per kind and version: `src/renderer/api/externalsecret/externalsecret-v1.ts`,
 `clusterexternalsecret/clusterexternalsecret-v1.ts`,
 `pushsecret/pushsecret-v1alpha1.ts`, `secretstore/secretstore-v1.ts` and
-`clustersecretstore/clustersecretstore-v1.ts`.
+`clustersecretstore/clustersecretstore-v1.ts`. The four `v1` models also serve
+`external-secrets.io/v1beta1`, which an ESO older than 0.16 serves in place of
+`v1`, with the same schema ("Adding a kind or a version").
 
 The host reads the model's metadata from the class, through `static readonly`
 properties. The objects it hands to the extension, in a list, a details panel
@@ -134,11 +136,12 @@ is not, and calling it throws. So:
   an `EsoKubeObjectCRD`: the host's `LensExtensionKubeObjectCRD` plus the
   `title` of the page.
 - **Instance type**: `declare kind` and `declare apiVersion`, with the kind and
-  the version as literals. Two versions of a kind usually differ only in
-  optional fields, so without the literals their classes are assignable to
-  each other, and `detailsFor` and `menuItemFor` accept a component written
-  for the other version ("Renderer Components"). `declare` emits nothing, so
-  the runtime object is the host's as before.
+  the version as literals, a union of the versions of a model that serves more
+  than one, as the host's documentation of the class has it. Two versions of a
+  kind usually differ only in optional fields, so without the literals their
+  classes are assignable to each other, and `detailsFor` and `menuItemFor`
+  accept a component written for the other version ("Renderer Components").
+  `declare` emits nothing, so the runtime object is the host's as before.
 - **Per-object logic**: a `static` method that takes the object, such as
   `ExternalSecret.getReady(object)`. The Ready condition logic is in
   `store-helpers.ts`; the statics delegate to it with the default texts of
@@ -157,14 +160,14 @@ export class SecretStore extends Renderer.K8sApi.LensExtensionKubeObject<
   SecretStoreSpec
 > {
   declare kind: "SecretStore";
-  declare apiVersion: "external-secrets.io/v1";
+  declare apiVersion: "external-secrets.io/v1" | "external-secrets.io/v1beta1";
 
   static readonly kind = "SecretStore";
   static readonly namespaced = true;
   static readonly apiBase = "/apis/external-secrets.io/v1/secretstores";
 
   static readonly crd: EsoKubeObjectCRD = {
-    apiVersions: ["external-secrets.io/v1"],
+    apiVersions: ["external-secrets.io/v1", "external-secrets.io/v1beta1"],
     plural: "secretstores",
     singular: "secretstore",
     shortNames: ["ss"],
@@ -229,7 +232,11 @@ has the mapping and the sources), not from memory:
 
 1. **The types** in `types.ts`, as above. A new version of a kind starts as a
    copy of the newest version's files; the diff of the Go types between the two
-   releases says what changes.
+   releases says what changes. A version with the same schema as one a model
+   already serves, as `v1beta1` is to `v1` (ESO 0.16 made `v1` a copy of it),
+   gets no files: it joins the model's `crd.apiVersions`, after the newer
+   version, which the host tries first, and its `declare apiVersion` union, and
+   the integration matrix gets a release that serves only it.
 2. **The model**, `src/renderer/api/<kind>/<kind>-<version>.ts`, with the
    `declare kind` and `declare apiVersion` literals, its `KubeApi` and its
    `KubeObjectStore`.
@@ -341,7 +348,10 @@ from the Custom Resources tree.
 - A link to another object is `Renderer.Component.MaybeLink` with
   `Renderer.Navigation.getMaybeDetailsUrl(selfLink)`, and the selfLink comes
   from `selfLinkOf` or `storeSelfLink` in `src/renderer/api/links.ts`, built
-  from the kind's `apiBase`. An empty selfLink renders the text without a link,
+  from the `apiBase` of the API the host registered for the kind (`getApi()`),
+  so that it names the version the cluster serves, which the drawer needs to
+  find the object, or from the static `apiBase` when there is no such API, as
+  for the host's Secret. An empty selfLink renders the text without a link,
   as for a SecretStore referred to from a cluster-scoped object, which lives in
   each target namespace. Nothing loads another store for a link: the drawer
   resolves the object when it opens.

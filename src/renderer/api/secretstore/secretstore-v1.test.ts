@@ -16,11 +16,11 @@ describe("SecretStore (v1)", () => {
     });
 
   describe("metadata", () => {
-    it("is namespaced and serves external-secrets.io/v1", () => {
+    it("is namespaced and serves external-secrets.io/v1, then v1beta1 where v1 is not served", () => {
       expect(SecretStore.kind).toBe("SecretStore");
       expect(SecretStore.namespaced).toBe(true);
       expect(SecretStore.apiBase).toBe("/apis/external-secrets.io/v1/secretstores");
-      expect(SecretStore.crd.apiVersions).toEqual(["external-secrets.io/v1"]);
+      expect(SecretStore.crd.apiVersions).toEqual(["external-secrets.io/v1", "external-secrets.io/v1beta1"]);
       expect(SecretStore.crd.plural).toBe("secretstores");
       expect(SecretStore.crd.shortNames).toEqual(["ss"]);
     });

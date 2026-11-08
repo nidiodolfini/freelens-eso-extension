@@ -24,14 +24,16 @@ export class SecretStore extends Renderer.K8sApi.LensExtensionKubeObject<
   SecretStoreSpec
 > {
   declare kind: "SecretStore";
-  declare apiVersion: "external-secrets.io/v1";
+  declare apiVersion: "external-secrets.io/v1" | "external-secrets.io/v1beta1";
 
   static readonly kind = "SecretStore";
   static readonly namespaced = true;
   static readonly apiBase = "/apis/external-secrets.io/v1/secretstores";
 
   static readonly crd: EsoKubeObjectCRD = {
-    apiVersions: ["external-secrets.io/v1"],
+    // An ESO older than 0.16 serves v1beta1 in place of v1, with the same schema. The host picks the first version
+    // that the cluster serves.
+    apiVersions: ["external-secrets.io/v1", "external-secrets.io/v1beta1"],
     plural: "secretstores",
     singular: "secretstore",
     shortNames: ["ss"],
