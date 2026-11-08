@@ -251,15 +251,18 @@ of each kind.
 
 ## Publishing a release
 
-```powershell
-pnpm bump-version patch        # or minor/major/prerelease
-pnpm build
-pnpm publish                   # requires npmjs.com authentication (NODE_AUTH_TOKEN)
-```
+A release goes through three workflows, and each of their jobs waits for a reviewer of its
+environment to approve it: `automated` for the first two, `publishing` for the last.
 
-The `.github/workflows/release.yaml` workflow also publishes automatically when a `v*` tag
-is pushed (it needs the npm registry `NPM_TOKEN` secret in the GitHub repository, or npm
-Trusted Publishing / provenance).
+1. **Automated npm version**, run from the Actions tab with the new version (`patch`, `minor`,
+   `major`, a prerelease or `X.Y.Z`), opens the pull request "Automated npm version vX.Y.Z",
+   which bumps `package.json`.
+2. Merging it starts **Automated tag**, which tags `main` as `vX.Y.Z`. If that run fails, a
+   comment `/tag` on the merged pull request runs it again.
+3. The tag starts **Release**, which builds and packs the extension, publishes it to npm with
+   provenance through npm trusted publishing (or with `NPM_TOKEN`, when the repository has that
+   secret), under the dist-tag `latest`, or `next` for a prerelease, and creates the GitHub
+   release with the tarball, its SBOM and their checksums.
 
 ## License
 
