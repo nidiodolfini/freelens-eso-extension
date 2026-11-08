@@ -193,7 +193,9 @@ Optional variables:
 
 - `TEST_KIND_CLUSTER_NAME`: the kind cluster, `kind` by default, used through the context
   `kind-<name>`.
-- `TEST_ESO_VERSION`: the ESO release whose CRDs are applied, `v2.14.0` by default.
+- `TEST_ESO_VERSION`: the ESO release whose CRDs are applied, `v2.14.0` by default. The test
+  objects are applied in the version it serves, `external-secrets.io/v1`, or `v1beta1` for a
+  release older than 0.16; the workflow runs the tests with `v2.14.0` and with `v0.15.1`.
 - `FREELENS_CDP_URL`: the CDP endpoint of Freelens dev, `http://127.0.0.1:9223` by default.
 - `FREELENS_MAIN_LOG`: a log of the main process to check for errors, such as its `lens.log`.
   Without it only the renderer's errors are checked.

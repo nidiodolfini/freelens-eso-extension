@@ -609,9 +609,11 @@ and the fluxcd extension. They run in this repository, under their own Vitest
 started with `pnpm dev` from a freelensapp/freelens checkout, attached with
 Playwright's `chromium.connectOverCDP` on the port that script opens, so they
 need no package of Freelens. `integration-tests.yaml` builds the extension,
-checks out Freelens at each release tag of its matrix (`v2.0.0`), starts
-`pnpm dev` under `xvfb-run` with a fresh profile seeded with a kubeconfig of a
-kind cluster, and runs the tests. Every test file is a session of its own on
+checks out Freelens at each release tag of its matrix (`v2.0.0`), each with
+two ESO releases (`v2.14.0`, the one the types follow, and `v0.15.1`, the last
+that serves only `external-secrets.io/v1beta1`), starts `pnpm dev` under
+`xvfb-run` with a fresh profile seeded with a kubeconfig of a kind cluster,
+and runs the tests. Every test file is a session of its own on
 the one app, and fails on any error logged by either process.
 
 - `extensions.tests.ts` uninstalls whatever installation of the extension the
@@ -620,10 +622,12 @@ the one app, and fails on any error logged by either process.
 - `eso.tests.ts` applies the CRDs of the five kinds of one ESO release,
   `TEST_ESO_VERSION` or the release the types follow, from the release's
   sources and without the controller, a test object of each kind
-  (`integration/fixtures/`), and the Secret of the ExternalSecret, with the
-  managed label and an owner reference, as the controller would write it. The
-  CRDs of the stores are larger than the annotation of a client-side apply, so
-  they are applied server-side. The session opens every page through
+  (`integration/fixtures/`, written in `external-secrets.io/v1` and applied in
+  the version the release serves, `esoApiVersion` of `extension-helpers.ts`),
+  and the Secret of the ExternalSecret, with the managed label and an owner
+  reference, as the controller would write it. The CRDs of the stores are
+  larger than the annotation of a client-side apply, so they are applied
+  server-side. The session opens every page through
   `Renderer.Navigation.navigate`, because the sidebar renders the group of the
   kinds collapsed, and checks for each kind that the list shows the test
   object, that the details show the extension's panel with the object in its

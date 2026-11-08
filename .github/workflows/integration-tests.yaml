@@ -18,14 +18,20 @@ env:
 
 jobs:
   test-integration:
-    name: "integration tests with Freelens ${{ matrix.freelens_version }}"
+    name: "integration tests with Freelens ${{ matrix.freelens_version }} and ESO ${{ matrix.eso_version }}"
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          # The Freelens releases the extension supports, by their tags.
+          # The Freelens releases the extension supports, by their tags, each
+          # with two ESO releases: the one the types follow, which serves
+          # external-secrets.io/v1, and 0.15.1, the last release that serves
+          # only external-secrets.io/v1beta1.
           - freelens_version: v2.0.0
+            eso_version: v2.14.0 # datasource=github-releases depName=external-secrets/external-secrets
+          - freelens_version: v2.0.0
+            eso_version: v0.15.1
 
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
@@ -314,7 +320,7 @@ jobs:
         env:
           FREELENS_MAIN_LOG: ${{ runner.temp }}/freelens-dev.log
           TEST_KIND_CLUSTER_NAME: freelens
-          TEST_ESO_VERSION: v2.14.0 # datasource=github-releases depName=external-secrets/external-secrets
+          TEST_ESO_VERSION: ${{ matrix.eso_version }}
 
       - name: Show Freelens dev output
         if: always()
