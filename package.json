@@ -1,6 +1,6 @@
 {
   "name": "freelens-eso-extension",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Freelens extension for External Secrets Operator",
   "repository": {
     "type": "git",
