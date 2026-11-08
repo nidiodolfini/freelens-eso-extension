@@ -67,7 +67,8 @@ stores and PushSecret do not support this action, so they have no menu item.
 
 - Freelens 2.0 or newer (extension API v2). Freelens 1.x needs a 1.x release of the
   extension.
-- A cluster with the External Secrets Operator installed (`external-secrets.io/v1`).
+- A cluster with the External Secrets Operator 0.16 or newer, the first release that serves
+  `external-secrets.io/v1` (see [Supported API versions](#supported-api-versions)).
 
 ## Installation
 
@@ -239,10 +240,14 @@ stylesheet next to the renderer entry.
 
 The extension supports **`external-secrets.io/v1`** for ExternalSecret, ClusterExternalSecret,
 SecretStore and ClusterSecretStore, and **`external-secrets.io/v1alpha1`** for PushSecret, the
-only version its CRD serves (one version per kind, with the "Not Available" page when the CRD
-is missing). `v1beta1` has been unserved since ESO 0.9 (2023); to add it later, follow the
-same per-version model/page/details pattern and list both versions in
-`createAvailableVersionPage`, newest first.
+only version its CRD serves, one version per kind.
+
+ESO 0.16 (April 2025) introduced `v1` for those four kinds, with the same schema as `v1beta1`,
+and ESO 0.17 (May 2025) stopped serving `v1beta1`. An older ESO serves `v1beta1` only: there
+the pages of the four kinds show "Not Available", and the kinds are still left out of the
+Custom Resources tree, because Freelens matches them by group and plural, not by version.
+Upgrade ESO to 0.16 or newer; until then, the command palette still opens Freelens's own list
+of each kind.
 
 ## Publishing a release
 
