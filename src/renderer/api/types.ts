@@ -1,7 +1,5 @@
 import { Renderer } from "@freelensapp/extensions";
 
-import type { BaseKubeObjectCondition } from "@freelensapp/kube-object";
-
 /**
  * The CRD metadata of an External Secrets Operator resource, with the
  * human-readable title the extension shows in its pages.
@@ -12,9 +10,10 @@ export interface EsoKubeObjectCRD extends Renderer.K8sApi.LensExtensionKubeObjec
 
 /**
  * A status condition, as ESO writes it into `status.conditions`: the
- * `BaseKubeObjectCondition` of `@freelensapp/kube-object`.
+ * `BaseKubeObjectCondition` of the host's kube objects, which `K8sApi`
+ * re-exports.
  */
-export type EsoCondition = BaseKubeObjectCondition;
+export type EsoCondition = Renderer.K8sApi.BaseKubeObjectCondition;
 
 export interface SecretStoreRef {
   name: string;

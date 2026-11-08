@@ -7,16 +7,16 @@
 
 ## Fontes
 
-| Fonte | URL |
-| --- | --- |
-| Tipos Go v1 (ExternalSecret) | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/externalsecret_types.go> |
-| Tipos Go v1 (SecretStore/ClusterSecretStore) | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/secretstore_types.go> |
-| Tipos Go v1beta1 (legado) | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1beta1/secretstore_types.go> |
-| Docs: ExternalSecret | <https://external-secrets.io/latest/api/externalsecret/> |
-| Docs: SecretStore | <https://external-secrets.io/latest/api/secretstore/> |
-| Docs: ClusterSecretStore | <https://external-secrets.io/latest/api/clustersecretstore/> |
-| Spec completa (todos os types) | <https://external-secrets.io/latest/api/spec/> |
-| FAQ (force-sync, status) | <https://external-secrets.io/latest/introduction/faq/> |
+| Fonte                                        | URL                                                                                                                          |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Tipos Go v1 (ExternalSecret)                 | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/externalsecret_types.go>   |
+| Tipos Go v1 (SecretStore/ClusterSecretStore) | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1/secretstore_types.go>      |
+| Tipos Go v1beta1 (legado)                    | <https://raw.githubusercontent.com/external-secrets/external-secrets/main/apis/externalsecrets/v1beta1/secretstore_types.go> |
+| Docs: ExternalSecret                         | <https://external-secrets.io/latest/api/externalsecret/>                                                                     |
+| Docs: SecretStore                            | <https://external-secrets.io/latest/api/secretstore/>                                                                        |
+| Docs: ClusterSecretStore                     | <https://external-secrets.io/latest/api/clustersecretstore/>                                                                 |
+| Spec completa (todos os types)               | <https://external-secrets.io/latest/api/spec/>                                                                               |
+| FAQ (force-sync, status)                     | <https://external-secrets.io/latest/introduction/faq/>                                                                       |
 
 > A URL `https://external-secrets.io/latest/api/status/` retorna **404** — não existe página
 > de status separada na doc atual. A documentação de status está nos tipos Go, nas páginas de
@@ -34,23 +34,23 @@
 
 `ExternalSecret` (marcadores `+kubebuilder:printcolumn` do tipo Go):
 
-| Coluna | JSONPath |
-| --- | --- |
-| `StoreType` | `.spec.secretStoreRef.kind` |
-| `Store` | `.spec.secretStoreRef.name` |
-| `Refresh Interval` | `.spec.refreshInterval` |
-| `Status` | `.status.conditions[?(@.type=="Ready")].reason` |
-| `Ready` | `.status.conditions[?(@.type=="Ready")].status` |
-| `Last Sync` | `.status.refreshTime` |
+| Coluna             | JSONPath                                        |
+| ------------------ | ----------------------------------------------- |
+| `StoreType`        | `.spec.secretStoreRef.kind`                     |
+| `Store`            | `.spec.secretStoreRef.name`                     |
+| `Refresh Interval` | `.spec.refreshInterval`                         |
+| `Status`           | `.status.conditions[?(@.type=="Ready")].reason` |
+| `Ready`            | `.status.conditions[?(@.type=="Ready")].status` |
+| `Last Sync`        | `.status.refreshTime`                           |
 
 `SecretStore` / `ClusterSecretStore`:
 
-| Coluna | JSONPath |
-| --- | --- |
-| `AGE` | `.metadata.creationTimestamp` |
-| `Status` | `.status.conditions[?(@.type=="Ready")].reason` |
-| `Capabilities` | `.status.capabilities` |
-| `Ready` | `.status.conditions[?(@.type=="Ready")].status` |
+| Coluna         | JSONPath                                        |
+| -------------- | ----------------------------------------------- |
+| `AGE`          | `.metadata.creationTimestamp`                   |
+| `Status`       | `.status.conditions[?(@.type=="Ready")].reason` |
+| `Capabilities` | `.status.capabilities`                          |
+| `Ready`        | `.status.conditions[?(@.type=="Ready")].status` |
 
 ---
 
@@ -63,29 +63,29 @@ metadata:
   name: hello-world
   namespace: default
 spec:
-  secretStoreRef:            # qual store usar
+  secretStoreRef: # qual store usar
     name: aws-store
-    kind: SecretStore        # SecretStore (default) | ClusterSecretStore
-  refreshPolicy: Periodic    # CreatedOnce | Periodic (default) | OnChange
-  refreshInterval: 1h0m0s    # Go duration; default "1h0m0s"; "0s" = cria uma vez e não atualiza
-  syncWindows:               # opcional; UTC; só vale p/ refreshPolicy Periodic
-    kind: allow              # allow | deny
+    kind: SecretStore # SecretStore (default) | ClusterSecretStore
+  refreshPolicy: Periodic # CreatedOnce | Periodic (default) | OnChange
+  refreshInterval: 1h0m0s # Go duration; default "1h0m0s"; "0s" = cria uma vez e não atualiza
+  syncWindows: # opcional; UTC; só vale p/ refreshPolicy Periodic
+    kind: allow # allow | deny
     windows:
       - schedule: "0 9 * * 1-5"
         duration: 8h
-  data:                      # mapeia chaves individuais
+  data: # mapeia chaves individuais
     - secretKey: username
       remoteRef:
         key: /path/to/secret
         property: username
-  dataFrom:                  # extrai tudo / find / generator
+  dataFrom: # extrai tudo / find / generator
     - extract:
         key: /path/to/all
   target:
     name: application-config
-    creationPolicy: Owner    # Owner (default) | Orphan | Merge | None | CreateOrMerge
-    deletionPolicy: Retain   # Delete | Merge | Retain (default)
-    template:                # blueprint do Secret criado (engine v2, go templates)
+    creationPolicy: Owner # Owner (default) | Orphan | Merge | None | CreateOrMerge
+    deletionPolicy: Retain # Delete | Merge | Retain (default)
+    template: # blueprint do Secret criado (engine v2, go templates)
       metadata: {}
       data: {}
     immutable: false
@@ -103,15 +103,15 @@ status:
 
 ### 1.1 `spec` (ExternalSecretSpec — campos completos)
 
-| Campo (json) | Tipo Go | Obrigatório? | Notas |
-| --- | --- | --- | --- |
-| `secretStoreRef` | `SecretStoreRef{name, kind}` | opcional no type (praticamente sempre presente) | `kind` ∈ `SecretStore`/`ClusterSecretStore` (default `SecretStore`); `name` regex DNS-1123 |
-| `target` | `ExternalSecretTarget` | opcional; default `{creationPolicy: Owner, deletionPolicy: Retain}` | `name` (default = metadata.name, imutável), `creationPolicy`, `deletionPolicy`, `template`, `manifest` (criar ConfigMap/CR em vez de Secret), `immutable` |
-| `refreshPolicy` | `ExternalSecretRefreshPolicy` | opcional (default `Periodic`) | `CreatedOnce` \| `Periodic` \| `OnChange` |
-| `refreshInterval` | `*metav1.Duration` | opcional; default `1h0m0s` | unidades Go: `ns`,`us`,`ms`,`s`,`m`,`h`; `0s` = fetch único |
-| `syncWindows` | `*ExternalSecretSyncWindows` | opcional | `kind: allow\|deny` + `windows[] {schedule (5-campos cron ou @daily/@every), duration}`; avaliado em UTC; só `Periodic` |
-| `data` | `[]ExternalSecretData` | opcional | `secretKey` (obrig.), `remoteRef` (obrig.), `sourceRef` (override de store) |
-| `dataFrom` | `[]ExternalSecretDataFromRemoteRef` | opcional | `extract`, `find`, `rewrite[]`, `sourceRef` (store ou generator) |
+| Campo (json)      | Tipo Go                             | Obrigatório?                                                        | Notas                                                                                                                                                     |
+| ----------------- | ----------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `secretStoreRef`  | `SecretStoreRef{name, kind}`        | opcional no type (praticamente sempre presente)                     | `kind` ∈ `SecretStore`/`ClusterSecretStore` (default `SecretStore`); `name` regex DNS-1123                                                                |
+| `target`          | `ExternalSecretTarget`              | opcional; default `{creationPolicy: Owner, deletionPolicy: Retain}` | `name` (default = metadata.name, imutável), `creationPolicy`, `deletionPolicy`, `template`, `manifest` (criar ConfigMap/CR em vez de Secret), `immutable` |
+| `refreshPolicy`   | `ExternalSecretRefreshPolicy`       | opcional (default `Periodic`)                                       | `CreatedOnce` \| `Periodic` \| `OnChange`                                                                                                                 |
+| `refreshInterval` | `*metav1.Duration`                  | opcional; default `1h0m0s`                                          | unidades Go: `ns`,`us`,`ms`,`s`,`m`,`h`; `0s` = fetch único                                                                                               |
+| `syncWindows`     | `*ExternalSecretSyncWindows`        | opcional                                                            | `kind: allow\|deny` + `windows[] {schedule (5-campos cron ou @daily/@every), duration}`; avaliado em UTC; só `Periodic`                                   |
+| `data`            | `[]ExternalSecretData`              | opcional                                                            | `secretKey` (obrig.), `remoteRef` (obrig.), `sourceRef` (override de store)                                                                               |
+| `dataFrom`        | `[]ExternalSecretDataFromRemoteRef` | opcional                                                            | `extract`, `find`, `rewrite[]`, `sourceRef` (store ou generator)                                                                                          |
 
 `remoteRef` = `{key (obrig.), metadataPolicy (None|Fetch), property, version, conversionStrategy (Default|Unicode), decodingStrategy (Auto|Base64|Base64URL|None), nullBytePolicy (Ignore|Fail)}`.
 
@@ -158,19 +158,19 @@ type ExternalSecretStatusCondition struct {
 
 **Condition `Ready`** — estado geral de sincronização. Reasons possíveis (constantes do controller):
 
-| Reason | Significado |
-| --- | --- |
-| `SecretSynced` | Sincronizado com sucesso (Ready=True) — "Secret was synced" |
-| `SecretSyncedError` | Erro ao sincronizar (Ready=False) — provider inacessível, secret faltando com `deletionPolicy: Retain`, etc. |
-| `SecretDeleted` | Secret foi deletado do cluster |
-| `SecretMissing` | Secret target está ausente |
-| `SecretImmutable` | Target é `immutable: true` e não pode ser atualizado |
-| `SecretOwnedByOther` | Secret alvo é owned por outro ExternalSecret |
-| `UpdateFailed` | Falha ao atualizar o Secret (também emitida como Event Warning) |
-| `MissingProviderSecret` | Secret não existe no provider |
-| `ParameterDeprecated` | Parâmetro deprecado em uso |
-| `Created` / `Updated` / `Deleted` | Eventos de lifecycle do Secret |
-| `ResourceSynced` / `ResourceSyncedError` / `ResourceDeleted` / `ResourceMissing` | Mesmas situações para `spec.target.manifest` (alvo não-Secret) |
+| Reason                                                                           | Significado                                                                                                  |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `SecretSynced`                                                                   | Sincronizado com sucesso (Ready=True) — "Secret was synced"                                                  |
+| `SecretSyncedError`                                                              | Erro ao sincronizar (Ready=False) — provider inacessível, secret faltando com `deletionPolicy: Retain`, etc. |
+| `SecretDeleted`                                                                  | Secret foi deletado do cluster                                                                               |
+| `SecretMissing`                                                                  | Secret target está ausente                                                                                   |
+| `SecretImmutable`                                                                | Target é `immutable: true` e não pode ser atualizado                                                         |
+| `SecretOwnedByOther`                                                             | Secret alvo é owned por outro ExternalSecret                                                                 |
+| `UpdateFailed`                                                                   | Falha ao atualizar o Secret (também emitida como Event Warning)                                              |
+| `MissingProviderSecret`                                                          | Secret não existe no provider                                                                                |
+| `ParameterDeprecated`                                                            | Parâmetro deprecado em uso                                                                                   |
+| `Created` / `Updated` / `Deleted`                                                | Eventos de lifecycle do Secret                                                                               |
+| `ResourceSynced` / `ResourceSyncedError` / `ResourceDeleted` / `ResourceMissing` | Mesmas situações para `spec.target.manifest` (alvo não-Secret)                                               |
 
 **Condition `Deleted`** — presente durante o fluxo de `deletionPolicy: Delete`: quando todos os
 secrets do provider somem, o controller deleta o Secret do cluster e registra essa condição.
@@ -216,13 +216,13 @@ type ClusterSecretStore struct { Spec SecretStoreSpec; Status SecretStoreStatus 
 
 ### 2.1 `spec` (SecretStoreSpec — campos completos)
 
-| Campo (json) | Tipo Go | Obrigatório? | Notas |
-| --- | --- | --- | --- |
-| `controller` | `string` | opcional | seleciona qual controller ESO processa (análogo a ingressClassName) |
-| `provider` | `*SecretStoreProvider` | **obrigatório** | **exatamente um** provider (MinProperties=1, MaxProperties=1): `aws`, `azurekv`, `akeyless`, `bitwardensecretsmanager`, `vault`, `ovh`, `gcpsm`, `oracle`, `ibm`, `yandexcertificatemanager`, `yandexlockbox`, `github`, `gitlab`, `onepassword`, `onepasswordSDK`, `webhook`, `kubernetes`, `crd`, `fake`, `senhasegura`, `scaleway`, `doppler`, `previder`, `onboardbase`, `keepersecurity`, `conjur`, `delinea`, `secretserver`, `chef`, `pulumi`, `fortanix`, `passworddepot`, `passbolt`, `dvls`, `infisical`, `beyondtrust`, `beyondtrustworkloadcredentials`, `cloudrusm`, `volcengine`, `ngrok`, `barbican`, `nebiusmysterybox`, `openbao` |
-| `retrySettings` | `*SecretStoreRetrySettings` | opcional | `maxRetries` (int32), `retryInterval` (string) |
-| `refreshInterval` | `*intstr.IntOrString` | opcional | inteiro em **segundos** (legado) OU string Go duration ("5m","1h"); vazio/0 = default do controller |
-| `conditions` | `[]ClusterSecretStoreCondition` | opcional | **só relevante no ClusterSecretStore** — restringe quais namespaces podem usar o store |
+| Campo (json)      | Tipo Go                         | Obrigatório?    | Notas                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------- | ------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `controller`      | `string`                        | opcional        | seleciona qual controller ESO processa (análogo a ingressClassName)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `provider`        | `*SecretStoreProvider`          | **obrigatório** | **exatamente um** provider (MinProperties=1, MaxProperties=1): `aws`, `azurekv`, `akeyless`, `bitwardensecretsmanager`, `vault`, `ovh`, `gcpsm`, `oracle`, `ibm`, `yandexcertificatemanager`, `yandexlockbox`, `github`, `gitlab`, `onepassword`, `onepasswordSDK`, `webhook`, `kubernetes`, `crd`, `fake`, `senhasegura`, `scaleway`, `doppler`, `previder`, `onboardbase`, `keepersecurity`, `conjur`, `delinea`, `secretserver`, `chef`, `pulumi`, `fortanix`, `passworddepot`, `passbolt`, `dvls`, `infisical`, `beyondtrust`, `beyondtrustworkloadcredentials`, `cloudrusm`, `volcengine`, `ngrok`, `barbican`, `nebiusmysterybox`, `openbao` |
+| `retrySettings`   | `*SecretStoreRetrySettings`     | opcional        | `maxRetries` (int32), `retryInterval` (string)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `refreshInterval` | `*intstr.IntOrString`           | opcional        | inteiro em **segundos** (legado) OU string Go duration ("5m","1h"); vazio/0 = default do controller                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `conditions`      | `[]ClusterSecretStoreCondition` | opcional        | **só relevante no ClusterSecretStore** — restringe quais namespaces podem usar o store                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 `ClusterSecretStoreCondition` (um OU outro dentro de cada item; basta um item casar):
 
@@ -264,16 +264,16 @@ const (
 **Condition `Ready`** no store: se `status: "False"`, os controllers de ExternalSecret **devem
 impedir tentativas de fetch**. Reasons (v1):
 
-| Reason | Significado |
-| --- | --- |
-| `Valid` | Store validado com sucesso (Ready=True) — "store validated" |
-| `ValidationFailed` | Validação do store falhou |
-| `InvalidStoreConfiguration` | Configuração do store inválida |
-| `InvalidProviderConfig` | Configuração do provider inválida |
-| `ProviderNotFound` | Provider citado no spec não pôde ser resolvido |
-| `ValidationUnknown` | Validação em estado desconhecido |
-| `StoreUnmaintained` | Provider sem mantenedor explícito (warning) |
-| `StoreDeprecated` | Provider deprecado |
+| Reason                      | Significado                                                 |
+| --------------------------- | ----------------------------------------------------------- |
+| `Valid`                     | Store validado com sucesso (Ready=True) — "store validated" |
+| `ValidationFailed`          | Validação do store falhou                                   |
+| `InvalidStoreConfiguration` | Configuração do store inválida                              |
+| `InvalidProviderConfig`     | Configuração do provider inválida                           |
+| `ProviderNotFound`          | Provider citado no spec não pôde ser resolvido              |
+| `ValidationUnknown`         | Validação em estado desconhecido                            |
+| `StoreUnmaintained`         | Provider sem mantenedor explícito (warning)                 |
+| `StoreDeprecated`           | Provider deprecado                                          |
 
 > Nota histórica: no **v1beta1** os reasons eram os mesmos (`Valid`,
 > `InvalidStoreConfiguration`, `InvalidProviderConfig`, `ValidationFailed`); o type de condição
@@ -289,11 +289,11 @@ metadata:
   name: example
   namespace: example-ns
 spec:
-  controller: dev            # opcional
+  controller: dev # opcional
   retrySettings:
     maxRetries: 5
     retryInterval: "10s"
-  provider:                  # exatamente um
+  provider: # exatamente um
     vault:
       server: "https://vault.acme.org"
       path: "secret"
@@ -326,7 +326,7 @@ spec:
             name: gcpsm-secret
             namespace: example
             key: secret-access-credentials
-  conditions:                 # restringe quais namespaces podem usar o CSS
+  conditions: # restringe quais namespaces podem usar o CSS
     - namespaceSelector:
         matchLabels:
           my.namespace.io/some-label: "value"
@@ -423,13 +423,13 @@ A doc usa a chave curta `force-sync` no exemplo; a chave completa reconhecida pe
 kubectl annotate ces my-ces external-secrets.io/force-sync=$(date +%s) --overwrite
 ```
 
-- **Não se aplica** a SecretStore/ClusterSecretStore (o `spec.refreshInterval` do *store* —
+- **Não se aplica** a SecretStore/ClusterSecretStore (o `spec.refreshInterval` do _store_ —
   inteiro em segundos ou duration string, default do controller — é que controla re-validação
   periódica do store, não um force-sync manual).
 
 ### 4.3 Interação com `refreshPolicy`
 
-A doc oficial ressalva: *"If supported by the configured refreshPolicy"*. Ou seja:
+A doc oficial ressalva: _"If supported by the configured refreshPolicy"_. Ou seja:
 
 - `Periodic` (default): force-sync funciona — annotation nova dispara sincronização imediata.
 - `CreatedOnce`: o sync é "uma vez por objeto"; o force-sync **não** re-sincroniza

@@ -1,6 +1,5 @@
 import React from "react";
 import styles from "./error-page.module.scss";
-import stylesInline from "./error-page.module.scss?inline";
 
 export interface ErrorPageProps {
   error?: unknown;
@@ -12,12 +11,9 @@ export interface ErrorPageProps {
  */
 export function ErrorPage({ error, children }: ErrorPageProps) {
   return (
-    <>
-      <style>{stylesInline}</style>
-      <div className={styles.errorPage}>
-        {error ? <p className={styles.errorMessage}>{String(error)}</p> : null}
-        {children}
-      </div>
-    </>
+    <div className={styles.errorPage}>
+      {error ? <p className={styles.errorMessage}>{String(error)}</p> : <></>}
+      {children}
+    </div>
   );
 }

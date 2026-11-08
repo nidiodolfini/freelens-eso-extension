@@ -1,18 +1,26 @@
 allowBuilds:
-  '@parcel/watcher': false
+  '@parcel/watcher': true
+  # electron is a devDependency for its types only; its install script would
+  # download the Electron binary, which nothing here runs.
   electron: false
   esbuild: false
-  node-pty: false
 
 engineStrict: true
 
-# Hoisted layout: keeps every dependency flat under node_modules/.
-nodeLinker: hoisted
-
 # pnpm holds back any version younger than minimumReleaseAge (1 day by
-# default). @freelensapp/extensions is a version range adopted from the
-# fluxcd extension, which is often updated on the day it is published.
+# default). @freelensapp/extensions is adopted on the day of a Freelens
+# release, together with the stack it was built with. The other entries are
+# the ones Freelens has, one exact version each, for security fixes that
+# cannot wait. Remove such an entry once that version is older than the
+# policy: the exclusion is then a no-op.
 minimumReleaseAgeExclude:
   - '@freelensapp/extensions'
+  # Node 24.22.1, the fix of CVE-2026-111497.
+  - electron@44.10.0
 
 shellEmulator: true
+
+# Fail the install, instead of printing one warning line, when a library the
+# extension shares with the host is outside the peer range of
+# @freelensapp/extensions.
+strictPeerDependencies: true

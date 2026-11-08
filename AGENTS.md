@@ -11,43 +11,72 @@ details panel and, for ExternalSecret, a Force Sync menu item for the three
 kinds of `external-secrets.io/v1`, ExternalSecret, SecretStore and
 ClusterSecretStore.
 
-- **Language**: TypeScript 5.9
-- **Runtime**: Freelens 1.x, extension API v1 (`engines.freelens: ^1.8.0`).
-  The host provides React 17, mobx 6 and mobx-react 7 at runtime.
-- **Toolchain**: Node.js 24 (`mise.toml`, `.nvmrc`) and pnpm 11 through
+- **Language**: TypeScript 7.x
+- **Runtime**: Freelens >= 2.0.0 (extension API v2, `engines.freelens: ^2.0.0`).
+  The host provides React 19, mobx 7 and mobx-react 10 at runtime.
+- **Toolchain**: Node.js 24 (`mise.toml`, `.nvmrc`) and pnpm 12 through
   corepack (`packageManager`)
-- **Build**: electron-vite 5, CommonJS bundles in `out/`, with the layout of
-  freelensapp/freelens-fluxcd-extension
+- **Build**: Vite 8 (Rolldown), ES module bundles in `dist/`, with the layout
+  of freelensapp/freelens-example-extension, the reference template of a v2
+  extension
 - **License**: MIT
 
-`@freelensapp/extensions` and `@freelensapp/kube-object` are devDependencies,
-for their types: the host publishes the API on a global at runtime and installs
-no dependency of an extension. `react`, `react-dom`, `mobx`, `mobx-react` and
-`@types/react` are devDependencies at the host's versions, for compiling and
-testing; the build maps the imports onto the host's copies ("Build"). Renovate
-follows the versions Freelens has on `main` through the custom datasources in
-`.renovaterc.json`, in one `Freelens dependencies` group.
+Library and tool versions follow the Freelens stack exactly: the catalog in
+Freelens's `pnpm-workspace.yaml` for libraries, the root `package.json` scripts
+of Freelens for tools run with `pnpm dlx` (Biome, knip, Trunk launcher), and
+Freelens's `mise.toml` and `.nvmrc` for Node and the other mise tools.
+Renovate keeps them there, through the custom datasources in
+`.renovaterc.json`, in one `Freelens dependencies` group PR together with a
+release of `@freelensapp/extensions`. `@freelensapp/extensions` is pinned to
+one exact version. The libraries the host provides at runtime (`react`,
+`react-dom`, `mobx`, `mobx-react`) and their types are devDependencies only,
+for compiling and testing; the build maps the imports onto the host's copies
+("Build"). `electron` is a devDependency for its types only, with its install
+script off in `pnpm-workspace.yaml`, so the Electron binary is never
+downloaded. Freelens installs no dependency of an extension: whatever the code
+needs at runtime and the host does not provide has to be in the bundle.
 
-pnpm settings live in `pnpm-workspace.yaml`: `nodeLinker: hoisted`,
-`allowBuilds` for the dependencies with install scripts (a new one must be
-listed there with `true` or `false`, or `pnpm install` fails), and the default
-`minimumReleaseAge` of one day, with `@freelensapp/extensions` excluded.
+pnpm settings live in `pnpm-workspace.yaml`: `allowBuilds` for the
+dependencies with install scripts (a new one must be listed there with `true`
+or `false`, or `pnpm install` fails), the default `minimumReleaseAge` of one
+day, with `@freelensapp/extensions` and the exact Electron version Freelens
+let in early excluded, and `strictPeerDependencies`, which fails the install
+when a copy of a shared library is outside the peer range that
+`@freelensapp/extensions` declares for it.
 
 ## Common Commands
 
 ```bash
-pnpm type:check       # tsc over the whole tree, one program (tsconfig.json)
-pnpm biome:check      # TypeScript/TSX, JS, JSON, CSS, HTML (Biome, via pnpm dlx)
-pnpm biome:fix
-pnpm trunk:check      # Markdown, YAML, SCSS, workflows, and Biome again (changed files)
-pnpm trunk:fix
-pnpm knip:check       # unused files and dependencies, a development and a production pass
-pnpm test:unit        # vitest
-pnpm build            # type check, then electron-vite build -> out/
-pnpm build:force      # the build without the type check
-pnpm pack:dev         # bump prerelease, build, pack a .tgz to install in Freelens
-pnpm clean            # remove out/
-pnpm clean:all        # out/, node_modules/, *.tgz and the generated *.d.scss.ts
+# Type checking
+pnpm type:check                # All of the programs below, in this order
+pnpm type:check:sources        # main and renderer, each with src/common/
+pnpm type:check:tests          # Tests and test support
+pnpm type:check:tooling        # Vite and Vitest configs, build plugins
+pnpm type:check:environments   # Environment tests
+
+# Linting & formatting
+pnpm biome:check          # TypeScript/TSX, JS, JSON, CSS, SCSS, HTML, YAML, Markdown (biome)
+pnpm biome:fix            # Auto-fix the formats above
+pnpm trunk:check          # TOML, shell, workflows, yamllint, and Biome again (changed files)
+pnpm trunk:fix            # Auto-fix TOML, shell, and the Biome formats
+pnpm lint:check           # Alias for biome:check
+pnpm lint:fix             # Alias for biome:fix
+pnpm knip:check           # Unused files, unused and unlisted dependencies (knip)
+
+# Tests
+pnpm test:unit            # vitest
+
+# Build
+pnpm build                # Both Vite runs, without the type check
+pnpm dev                  # Both Vite runs in watch mode, for a directory install
+
+# Pack for testing
+pnpm pack:dev             # Bump prerelease version, build, and create .tgz for install in Freelens app
+
+# Clean
+pnpm clean                # Clean dist/
+pnpm clean:dts            # Remove generated *.d.scss.ts files
+pnpm clean:all            # Clean everything (dist, dts, node_modules, tgz)
 ```
 
 ## Architecture
@@ -55,10 +84,9 @@ pnpm clean:all        # out/, node_modules/, *.tgz and the generated *.d.scss.ts
 ```text
 src/
   main/index.ts                      # Main entry (Main.LensExtension), stateless
-  renderer/index.tsx                 # Renderer entry: pages, details panels, menu item
+  renderer/index.tsx                 # Renderer entry: pages, details panels, menu item, customResources
   renderer/api/types.ts              # ESO spec and status types
   renderer/api/store-helpers.ts      # Condition helpers shared by the models and the details panels
-  renderer/api/lazy-store.ts         # lazyStore: a store built and registered on first use, in a cluster frame
   renderer/api/<kind>/<kind>-v1.ts   # Model, KubeApi and KubeObjectStore of a kind, with its tests
   renderer/pages/                    # One list page per kind, and their CSS module
   renderer/details/                  # ExternalSecretDetails, and StoreDetails for both store kinds
@@ -66,33 +94,41 @@ src/
   renderer/components/               # createAvailableVersionPage, ErrorBoundary and its wrappers, ErrorPage
   renderer/icons/                    # The SVG icon, imported with ?raw, and its component
   renderer/vars.scss                 # SCSS variables
-build/global-externals.js            # Vite plugin: host modules -> globals of the host
-electron.vite.config.js              # The build, main and renderer
+  common/                            # Code both entries would import; empty today, its tsconfig.json stays
 test/freelens-extensions.ts          # Runtime stub of @freelensapp/extensions for Vitest
+environment-tests/                   # Probes for the per-environment programs
+build/                               # Vite plugins: host modules, standard decorators, CSS module declarations
+vite.config.mjs                      # The build, renderer and main
 docs/eso-api.md                      # The ESO API from the controller's Go types, which types.ts follows
 examples/eso/                        # Test objects on the fake provider (kubectl apply -f)
 ```
 
-Build output goes to `out/main/index.js` and `out/renderer/index.js`, one file
-per entry with its source map; `main` and `renderer` in `package.json` point at
-them.
+Build output goes to `dist/`: `main.js`, `renderer.js` and `renderer.css`, with
+source maps. `main` and `renderer` in `package.json` point at the two entries.
 
 ## CRD KubeObject Pattern
 
-A model is a subclass of `Renderer.K8sApi.KubeObject`, one file per kind:
-`src/renderer/api/externalsecret/externalsecret-v1.ts`,
+A model is a subclass of `Renderer.K8sApi.LensExtensionKubeObject`, one file
+per kind: `src/renderer/api/externalsecret/externalsecret-v1.ts`,
 `secretstore/secretstore-v1.ts` and `clustersecretstore/clustersecretstore-v1.ts`.
 
 The host reads the model's metadata from the class, through `static readonly`
 properties. The objects it hands to the extension, in a list, a details panel
-or a menu item, are instances of the host's `KubeObject`, not of the subclass:
-the methods of `KubeObject` itself are there (`getName()`, `getNs()`,
+or a menu item, come from the host's store for the resource: they are
+instances of the host's `KubeObject`, not of the subclass. The methods of
+`KubeObject` itself are there (`getName()`, `getNs()`,
 `getCreationTimestamp()`, `getSearchFields()`), a method the subclass defines
 is not, and calling it throws. So:
 
 - **Metadata**: `static readonly` `kind`, `namespaced`, `apiBase` and `crd`,
   an `EsoKubeObjectCRD`: the host's `LensExtensionKubeObjectCRD` plus the
   `title` of the page.
+- **Instance type**: `declare kind` and `declare apiVersion`, with the kind and
+  the version as literals. Two versions of a kind usually differ only in
+  optional fields, so without the literals their classes are assignable to
+  each other, and `detailsFor` and `menuItemFor` accept a component written
+  for the other version ("Renderer Components"). `declare` emits nothing, so
+  the runtime object is the host's as before.
 - **Per-object logic**: a `static` method that takes the object, such as
   `ExternalSecret.getReady(object)`. The Ready condition logic is in
   `store-helpers.ts`; the statics delegate to it with the default texts of
@@ -105,11 +141,14 @@ is not, and calling it throws. So:
   the fallback; `as any`.
 
 ```typescript
-export class SecretStore extends Renderer.K8sApi.KubeObject<
+export class SecretStore extends Renderer.K8sApi.LensExtensionKubeObject<
   Renderer.K8sApi.KubeObjectMetadata,
   SecretStoreStatus,
   SecretStoreSpec
 > {
+  declare kind: "SecretStore";
+  declare apiVersion: "external-secrets.io/v1";
+
   static readonly kind = "SecretStore";
   static readonly namespaced = true;
   static readonly apiBase = "/apis/external-secrets.io/v1/secretstores";
@@ -129,30 +168,34 @@ export class SecretStore extends Renderer.K8sApi.KubeObject<
 
 export class SecretStoreApi extends Renderer.K8sApi.KubeApi<SecretStore> {}
 export class SecretStoreStore extends Renderer.K8sApi.KubeObjectStore<SecretStore, SecretStoreApi> {}
-
-export const getSecretStoreStore = lazyStore(
-  () => new SecretStoreStore(new SecretStoreApi({ objectConstructor: SecretStore, autoRegister: false })),
-);
 ```
 
-Each model file exports a getter made by `lazyStore`
-(`src/renderer/api/lazy-store.ts`), such as `getExternalSecretStore()`. The
-first call builds the kind's `KubeApi`, with `autoRegister: false`, and its
-`KubeObjectStore`, and registers the store with
-`Renderer.K8sApi.apiManager.registerStore`; later calls return the same store.
-The pages and the menu item call the getter while they render, which happens
-in a cluster frame only. Nothing is built when a module loads: a `KubeApi` can
-only be built in a cluster frame, and the root frame loads the renderer entry
-too ("Rules That Fail Silently").
+The file also exports a `KubeApi` and a `KubeObjectStore` subclass. The list
+page uses the `KubeApi` type for `KubeObjectListLayout`; neither is
+instantiated, because the store comes from the host. The host registers an
+API, and with it a store, for every version of a CRD the cluster serves, and
+`SecretStore.getStore<SecretStore>()` returns the one for the first entry of
+`crd.apiVersions` that is served; it throws when none is. The pages and the
+menu item call it while they render, which happens in a cluster frame only.
 
 `createAvailableVersionPage` decides whether a kind is served with
-`apiManager.getStore(kubeObjectClass.apiBase)`, which the host resolves only
-for a CRD the cluster serves, and renders a "Not Available" page otherwise.
-The page it returns is an `observer`: the registry is observable, and the host
-registers a CRD's APIs after the cluster frame has loaded the CRDs, so a page
-opened before that renders again when the kind is served.
-`src/renderer/components/available-version.test.tsx` checks it with a spy on
-`getStore` that reads an observable.
+`kubeObjectClass.getStore()` and renders a "Not Available" page otherwise.
+The page it returns is an `observer`: `getStore()` reads the host's observable
+API registry, and the host registers a CRD's APIs after the cluster frame has
+loaded the CRDs, so a page opened before that renders again when the kind is
+served. Freelens restores the last page when a cluster is opened, so this
+happens often. `src/renderer/components/available-version.test.tsx` checks it
+with a spy on `getStore` that reads an observable.
+
+`customResources` in `src/renderer/index.tsx` lists the three model classes.
+The host reads the group and plural from each class's `crd`, and while the
+extension is enabled it leaves the resources out of the Custom Resources tree
+of the cluster sidebar, where they would otherwise be listed a second time
+under `external-secrets.io`. Their definitions stay in the Definitions list,
+and the host's own list and details stay reachable by URL and from the command
+palette. A model the extension only decorates, with a details panel or a menu
+item and no page of its own, stays out of the field: registered, it would leave
+the tree with nothing in its place.
 
 ### Types
 
@@ -168,29 +211,37 @@ has the mapping and the sources), not from memory:
 - Every `+kubebuilder:validation:Enum` is a string-literal union type alias.
 - `spec.provider` of the stores is an open record: the controller requires
   exactly one of 40+ backends, each with its own shape.
+- A condition is `Renderer.K8sApi.BaseKubeObjectCondition`. The whole of the
+  host's kube-object package is re-exported from `K8sApi`; nothing is imported
+  from another `@freelensapp/*` package, which are private in v2.
 
 ### Adding a kind or a version
 
 1. **The types** in `types.ts`, as above. A new version of a kind starts as a
    copy of the newest version's files; the diff of the Go types between the two
    releases says what changes.
-2. **The model**, `src/renderer/api/<kind>/<kind>-<version>.ts`, with its
-   `KubeApi`, its `KubeObjectStore` and its `lazyStore` getter.
+2. **The model**, `src/renderer/api/<kind>/<kind>-<version>.ts`, with the
+   `declare kind` and `declare apiVersion` literals, its `KubeApi` and its
+   `KubeObjectStore`.
 3. **The list page** in `src/renderer/pages/`, passed through
    `createAvailableVersionPage` (newest version first when a kind has more than
    one) and registered in `clusterPages` and `clusterPageMenus`.
 4. **The details panel** in `src/renderer/details/`, registered in
-   `kubeObjectDetailItems`.
-5. **Menu items** in `src/renderer/menus/`, only for what the resource
-   supports: Force Sync writes the `external-secrets.io/force-sync` annotation,
-   which the ESO controller reconciles on.
-6. **Tests** for the static helpers, next to the model; a member of the host
+   `kubeObjectDetailItems` with `Renderer.K8sApi.detailsFor` and the model
+   class.
+5. **Menu items** in `src/renderer/menus/`, registered in `kubeObjectMenuItems`
+   with `Renderer.K8sApi.menuItemFor` and the model class, only for what the
+   resource supports: Force Sync writes the `external-secrets.io/force-sync`
+   annotation, which the ESO controller reconciles on.
+6. **`customResources`**: the model class of every version that has a page.
+7. **Tests** for the static helpers, next to the model; a member of the host
    that a test reaches goes into the stub, as small as the test needs.
-7. **A test object** in `examples/eso/`, and its row in `README.md`.
+8. **A test object** in `examples/eso/`, and its row in `README.md`.
 
-Then check the result in Freelens with the checkout installed in place
-(`README.md`, "Development"): the page lists the test object, the details show
-every field, and the menu item works.
+Then check the result in Freelens with the checkout installed from its
+directory (`README.md`, "Development loop"): the page lists the test object,
+the details show every field, the menu item works, and the resource is gone
+from the Custom Resources tree.
 
 ## Renderer Components
 
@@ -209,34 +260,50 @@ every field, and the menu item works.
     entry added to a field is wrapped too. Each field is annotated with its type
     from `Renderer.LensExtension`, because the mapping refers to `this`, and
     its type would otherwise depend on itself.
+  - The wrappers take the registration that `Renderer.K8sApi.detailsFor` and
+    `menuItemFor` built, so the helpers check each component against its model
+    first, with no cast.
   - A `try`/`catch` around the call of a component is not enough: a child
     throws when React renders it, and a callback such as `renderTableContents`
     of `KubeObjectListLayout` throws from the host's render. Such an error goes
     up to the host's boundary, which replaces the main area for a page and the
     whole cluster frame for a details panel or a menu item.
+- The `kubeObjectDetailItems` and `kubeObjectMenuItems` registrations are made
+  by `Renderer.K8sApi.detailsFor(ExternalSecret, { priority: 10, Details })`
+  and `Renderer.K8sApi.menuItemFor(ExternalSecret, { MenuItem })`, not written
+  out with `kind` and `apiVersions`. The helper takes both from the model class
+  and types the props of `Details` and `MenuItem` from it, so a component
+  written for another model fails the type check. The check is structural: it
+  tells two kinds or versions apart by the `declare kind` and
+  `declare apiVersion` literals of each model ("CRD KubeObject Pattern").
 - The components are registered as they are, `Details: ExternalSecretDetails`
   and `MenuItem: ExternalSecretForceSyncMenuItem`. Their props are
   `Renderer.Component.KubeObjectDetailsProps<Model>` and
   `Common.Types.KubeObjectMenuItemProps<Model>`: the concrete model class, never
-  `any`, and only what the host passes. `StoreDetails` takes the union of the
-  two store models and serves both registrations.
+  `any`, and only what the host passes. A menu item does not extend
+  `Renderer.Component.KubeObjectMenuProps`, the props of the host's whole
+  `KubeObjectMenu`. `StoreDetails` takes the union of the two store models and
+  serves both registrations.
 - The host renders a cluster page with `params` only. A page that needs the
   extension gets it from the registration
   (`Page: () => <ExternalSecretsPageAvailable extension={this} />`), with the
-  page component created once, outside the registration.
-- **CSS**: the host links no stylesheet of a v1 extension. A component imports
-  its CSS module twice, `styles` for the class names and `stylesInline` with
-  `?inline` for the text, and renders `<style>{stylesInline}</style>` before
-  its content. The build also writes `out/renderer/freelens-eso-extension.css`,
-  which nothing loads. CSS modules use `camelCaseOnly` class names; SCSS
-  variables are in `src/renderer/vars.scss`, used with `@use "../vars"`.
+  page component created once, outside the registration. `PageComponents.Page`
+  is typed with the props the host passes, so the type check rejects a page
+  that requires another prop; it does not reject one that declares another
+  prop as optional, which is then `undefined`.
+- **CSS**: a component imports its CSS module for the class names only, with no
+  `?inline` import and no `<style>` tag; the rules reach the page through
+  `dist/renderer.css`, which the host links next to the renderer entry ("CSS"
+  under "Build"). CSS modules use `camelCaseOnly` class names; SCSS variables
+  are in `src/renderer/vars.scss`, used with `@use "../vars"`.
 - SCSS modules get TypeScript declarations (`*.module.d.scss.ts`), written by
-  `vite-plugin-sass-dts` during the renderer build, with a key for a
-  `:global(...)` class as well. They are committed, because `pnpm type:check`
-  and `type-check.yaml` run without a build, and `allowArbitraryExtensions` in
-  `tsconfig.json` makes the import resolve to them, so a class name the
-  stylesheet lacks fails the check. Commit the regenerated file with a change
-  to its SCSS module; `pnpm clean:dts` removes them.
+  `build/vite-plugin-css-module-declarations.mjs` during the renderer build,
+  without a key for a class inside `:global(...)`. They are committed, because
+  `pnpm type:check` and `type-check.yaml` run without a build, and
+  `allowArbitraryExtensions` in the renderer's `tsconfig.json` makes the import
+  resolve to them, so a class name the stylesheet lacks fails the check. Commit
+  the regenerated file with a change to its SCSS module; `pnpm clean:dts`
+  removes them.
 - Icons are SVG files imported with `?raw` and rendered by
   `Renderer.Component.Icon` through its `svg` prop. Biome leaves `.svg` files
   alone (`biome.jsonc`), so the icon stays minified.
@@ -247,38 +314,42 @@ Each of these compiles when it is broken, and breaks the extension at runtime
 or not visibly at all.
 
 - **The host's React and mobx, one copy each.** Import `react`, `react-dom`,
-  `react/jsx-runtime`, `mobx`, `mobx-react` and `@freelensapp/extensions` by
-  their bare module ids; `build/global-externals.js` maps them onto the host's
-  globals (`global.React`, `global.Mobx`, `global.LensExtensions`, ...). A
-  second React throws `invalid hook call`; a second mobx throws nothing, and
-  the host never reacts to its observables. The main build maps only
-  `@freelensapp/extensions` and `mobx`, the modules the main process has.
-- **No Node or Electron in renderer code.** They are `undefined` in the
-  renderer. Biome's `noNodejsModules` rejects a Node builtin import under
-  `src/renderer/`. A Node global such as `process` or `Buffer` passes the build
-  and the type check, because `tsconfig.json` is one program with the Node
-  types for the build config and the tests; review for it.
+  `mobx` and `mobx-react` by their bare module ids;
+  `build/vite-plugin-host-modules.mjs` maps them onto
+  `globalThis.FreelensExtensionApi`. A second React throws
+  `invalid hook call`; a second mobx throws nothing, and the host never reacts
+  to its observables. The build fails on the ways a second copy gets in
+  ("Modules provided by the host").
+- **Standard decorators.** The code has none today. One that is added is a
+  standard decorator: an observable field is `@observable accessor`, and the
+  class does not call `makeObservable(this)`. Without `accessor` the
+  production build of mobx leaves the field unobservable ("Decorators").
+- **No Node or Electron in renderer and common code.** They are `undefined` in
+  the renderer. The build fails on an import, `pnpm type:check` on a global
+  such as `process` or `Buffer` ("Process-specific settings").
+- **One CSS asset, `dist/renderer.css`.** Any other name, or a second asset,
+  leaves the extension unstyled. Nothing checks it; look at `dist/` after a
+  change to the CSS setup ("CSS").
+- **One tsconfig per environment.** Each program has only its runtime's `lib`
+  and `types`, and no declaration may load Node into the renderer or the DOM
+  into main; otherwise a wrong API type-checks and is `undefined` at runtime.
+  The environment tests fail on a leak ("TypeScript").
 - **No instance method on a KubeObject subclass.** The objects from the host do
   not have it, and the call throws. Nothing checks it ("CRD KubeObject
   Pattern").
-- **No `KubeApi` built when a module loads.** The host asserts `request MUST
-  be provided if not in a cluster page frame context` when a `KubeApi` is
-  built outside a cluster frame, and the root frame loads the renderer entry
-  too: built at module level, it fails the whole renderer there, and the host
-  logs `can't load renderer` for the extension. Build it in the `lazyStore`
-  getter, called from a page or a menu item ("CRD KubeObject Pattern").
-  `src/renderer/api/externalsecret/externalsecret-v1.test.ts` checks that
-  importing the model registers nothing.
-- **A component that chooses what to render through `apiManager.getStore()` is
-  an `observer`.** Otherwise a page opened before the cluster frame has loaded
+- **A component that chooses what to render through `getStore()` is an
+  `observer`.** Otherwise a page opened before the cluster frame has loaded
   the CRDs shows the kind as not installed until the user navigates away and
-  back ("CRD KubeObject Pattern").
+  back. Only a test whose `getStore` reads an observable shows it ("CRD
+  KubeObject Pattern").
 - **Function components, or `this.props` only in `render()`.** Under
-  mobx-react, the props of an `@observer` class component are not observable,
-  and a `@computed` getter or a `KubeObjectListLayout` callback that reads
-  them throws when the page renders. The pages and panels here are function
-  components; keep it that way, or read the props in `render()` and hand them
-  to the callbacks.
+  mobx-react 10, the props of an `@observer` class component are not
+  observable, and a `@computed` getter or a `KubeObjectListLayout` callback
+  that reads them throws
+  `[mobx-react] Cannot read "X.props" in a reactive context` when the page
+  renders, and the host shows its "App crash" page. The pages and panels here
+  are function components; keep it that way, or read the props in `render()`
+  and hand them to the callbacks.
 - **A memo over a store's items is keyed on something that changes with
   them.** The host keeps one observable array per store and updates it in
   place, so `store.items` stays the same array while the objects change. An
@@ -286,83 +357,208 @@ or not visibly at all.
   keyed on the array is computed once.
 - **Every page, details panel and menu item inside an error boundary**
   ("Renderer Components").
+- **A cluster page gets the extension from its registration.** The host passes
+  `params` only ("Renderer Components").
+- **An ESM `main`, and the entries in `package.json` unchanged while
+  `pnpm dev` runs.** The host refuses to reload a CommonJS main and logs why,
+  and it watches only the entries it started with, so a manifest change needs
+  Freelens restarted.
 - **The testing helpers of React stay out of the extension's code.** `act`,
   `react-dom/test-utils` and `@testing-library/*` work in the unit tests, which
   run the development build of React, and throw in the host, which runs the
   production build. Biome's `noRestrictedImports` rejects them outside the
   tests.
-- **`main` and `renderer` in `package.json` point at `out/`.** A change to the
-  output layout changes them too, and Freelens needs a restart after a manifest
-  change of an installed extension.
+
+Neither `pnpm build` nor `pnpm dev` runs the type check, so a Node global in
+renderer code passes them; `pnpm type:check` and `type-check.yaml` catch it.
 
 ## Build
 
-`electron.vite.config.js` builds two CommonJS libraries with Rolldown, one file
-each: `main` from `src/main/index.ts` to `out/main/`, and the renderer from
-`src/renderer/index.tsx` in the `preload` section to `out/renderer/`, since a
-v1 renderer entry needs no HTML page and shares the CommonJS output. Node
-builtins and `electron` stay external in both; everything else is bundled, so
-whatever the code needs at runtime and the host does not provide has to be in
-the bundle. Source maps are written next to the bundles. Nothing is minified.
+`vite.config.mjs` builds one entry point per run, in library mode, as ESM:
+`vite build` builds the renderer and empties `dist/`, and `vite build --mode
+main` builds main next to it. The two runs share no chunk; each bundle carries
+its own copy of the `src/common/` code it imports. Nothing is minified.
 
-`build/global-externals.js` replaces a bare import of a host module with an ESM
-shim that reads the host's global and re-exports its members by name, so that a
-named import such as `import { forwardRef } from "react"` in any bundled code
-resolves statically. The names come from the installed devDependency, read with
-`require()` or, for a package that cannot be loaded in Node, parsed from its
-source. It takes only the id-to-global map. `vite-plugin-sass-dts` writes the
-CSS module declarations ("Renderer Components"). Decorators are configured as
-legacy decorators for Oxc, as in the fluxcd extension; the code has none today.
+`pnpm dev` runs the same two builds in watch mode, side by side, for a
+directory install: the host reloads the extension when either entry is
+rewritten. Its renderer run passes `--no-emptyOutDir`, because in watch mode
+Vite empties the output directory again before every rebuild, which would
+delete `dist/main.js`.
 
-Neither `pnpm build:force` nor the type check sees a Node global in renderer
-code ("Rules That Fail Silently"); `pnpm build` runs the type check first.
+### Modules provided by the host
+
+The host publishes its singletons on `globalThis.FreelensExtensionApi`, and
+each process publishes only the ones it has (contract C3 of the Freelens
+extension API, `docs/extensions/api.md` in freelensapp/freelens):
+
+| Module id           | Global            | Published in |
+| ------------------- | ----------------- | ------------ |
+| `react`             | `React`           | renderer     |
+| `react-dom`         | `ReactDom`        | renderer     |
+| `react/jsx-runtime` | `ReactJsxRuntime` | renderer     |
+| `mobx`              | `Mobx`            | both         |
+| `mobx-react`        | `MobxReact`       | renderer     |
+| `monaco-editor`     | `MonacoEditor`    | renderer     |
+
+`build/vite-plugin-host-modules.mjs` replaces a bare import of one of these
+with a module that reads the global, in the extension's code and in every
+library it bundles. Its named exports are the members of the copy installed as
+a devDependency, which is pinned to the host's version, so an import of a name
+the host's version lacks fails the build. The plugin also fails the build on an
+import of a host module that the process does not publish (`react` in main),
+and on a subpath of a host package that the host does not publish
+(`react-dom/client`).
+
+Everything else is bundled. That includes `@freelensapp/extensions`, a shim of
+three lines that reads `Common`, `Main` and `Renderer` off the same global; it
+must not be mapped.
+
+### Process-specific settings
+
+- **Renderer**: nothing is external. An import of a Node builtin or of
+  `electron` fails the build (Vite would otherwise replace it with an empty
+  module and only warn). `process.env.NODE_ENV` is replaced at build time,
+  because library mode leaves it for a consumer's bundler and the page has no
+  `process`.
+- **Main**: Node builtins (`node:*` and bare) and `electron` stay external.
+  Bundled packages resolve with Vite's server conditions, so main gets their
+  Node builds. Main is built for Rolldown's `node` platform, so that a bundled
+  CommonJS package can `require()` the builtins, and `__dirname` and
+  `__filename` are defined as `import.meta.dirname` and `import.meta.filename`.
+  The main entry here bundles nothing of the kind, so it is the same on both
+  platforms; the settings stay for whatever is added.
+
+### Decorators
+
+MobX 7 supports standard decorators only, and Oxc, which transpiles TypeScript
+for Vite, passes them through unlowered, while neither Node nor Chromium runs
+them yet. `build/vite-plugin-standard-decorators.mjs`, copied from Freelens,
+hands every module with a decorator to esbuild first, which lowers the
+decorators and their `accessor` fields. Both `vite.config.mjs` and
+`vitest.config.ts` use it. The code has no decorator today; the plugin stays
+so that one that is added works.
+
+### CSS
+
+The host links the stylesheet named after the renderer entry, `renderer.css`
+next to `renderer.js`. Library mode extracts the CSS of the whole bundle into
+that one file (`build.lib.cssFileName`). A build that emits more than one CSS
+asset, or a differently named one, leaves the extension unstyled. A component
+imports its CSS module for the class names only and renders no `<style>` tag.
+
+### CSS module declarations
+
+`build/vite-plugin-css-module-declarations.mjs` writes `x.module.d.scss.ts`
+next to every `x.module.scss` the renderer build imports, in `vite build` and
+in watch mode. It takes the class names from Vite's own `preprocessCSS`, with
+the build's resolved config, so they are the names the bundle exports, after
+`localsConvention`; a class inside `:global(...)` is not one of them. It
+writes a declaration only when the content changed, through a temporary file
+renamed over the declaration, so a failed or interrupted build cannot leave a
+committed declaration truncated.
 
 ## TypeScript
 
-One program, `tsconfig.json`, extends
-`@electron-toolkit/tsconfig/tsconfig.node.json` and includes `src/**/*` and
-the `*.ts` files at the root: sources, tests, test support and the Vitest
-config, with the DOM, Node and `vite/client` types. The renderer, main and the
-tests share one set of globals; only the build (for imports) and Biome (for
-Node builtin imports) tell a renderer file from a main file.
+Main code runs in Node, renderer code in a browser page, and common code in
+both. Each is type-checked in a program of its own, so that an API the runtime
+does not have fails `pnpm type:check` rather than the extension:
 
-`vite/client` declares the `*?raw` and `*?inline` imports and the CSS modules;
-`allowArbitraryExtensions` makes `import styles from "./x.module.scss"`
-resolve to the generated `x.module.d.scss.ts` ("Renderer Components").
+| Config                       | lib                       | types                 | Files                                                              |
+| ---------------------------- | ------------------------- | --------------------- | ------------------------------------------------------------------ |
+| `src/main/tsconfig.json`     | ES2024                    | `node`                | `src/main/`, `src/common/`                                         |
+| `src/renderer/tsconfig.json` | ES2024, DOM, DOM.Iterable | `vite/client`         | `src/renderer/`, `src/common/`                                     |
+| `src/common/tsconfig.json`   | ES2024, WebWorker         | none                  | `src/common/`                                                      |
+| `src/tsconfig.json`          | ES2024, DOM, DOM.Iterable | `node`, `vite/client` | `*.test.ts(x)` under `src/`, and `test/`                           |
+| `tsconfig.json`              | ES2024                    | `node`                | `vite.config.mjs`, `vitest.config.ts`, `svgo.config.mjs`, `build/` |
+
+All of them extend `tsconfig.base.json`: `strict`, `moduleResolution: Bundler`,
+`useDefineForClassFields`, `noUncheckedSideEffectImports` and `skipLibCheck`
+among them. `skipLibCheck` is required: `extension-api.d.ts` is one declaration
+for both processes and names DOM types and the `Electron` namespace, which no
+single program has. Write `types` in every config; it decides which `@types`
+packages a program sees.
+
+The main and renderer configs both include `src/common/`. Compiled as main,
+common code fails on the DOM; compiled as renderer, it fails on Node. What
+passes both is valid in both. `src/common/` is empty today; its
+`tsconfig.json` stays, because the editor uses it and the environment tests
+extend it, and `tsc -p environment-tests` always has its probes to compile.
+
+The split does not cover the API namespaces: `Main` and `Renderer` compile in
+every program, and the one the process does not have is `undefined` at runtime.
+
+The renderer program has `vite/client`, which declares the `*?raw` imports and
+the CSS modules and brings no Node into the program. With
+`allowArbitraryExtensions`, `import styles from "./x.module.scss"` resolves to
+the generated `x.module.d.scss.ts` ("Renderer Components").
+
+### Environment tests
+
+`types` and `lib` alone do not keep an environment pure: a declaration file
+with `/// <reference types="node" />` loads all of `@types/node` into any
+program that reaches it. `environment-tests/` proves the split holds:
+
+| File             | Compiled with          | Must                      |
+| ---------------- | ---------------------- | ------------------------- |
+| `node-apis.ts`   | renderer, common       | fail on every marked line |
+| `dom-apis.ts`    | main, common           | fail on every marked line |
+| `worker-apis.ts` | main                   | fail on every marked line |
+| `shared-apis.ts` | main, renderer, common | pass                      |
+
+Each line that must fail carries `// @ts-expect-error`, so a program that
+starts accepting it fails with an unused directive. The configs there extend
+the source configs and keep their `include`, so the probes are compiled
+together with the sources and every declaration the sources reach. When a
+declaration leaks, keep the leak out rather than relax a probe.
 
 ## Tests
 
 Vitest (`vitest.config.ts`) runs the `*.test.ts(x)` files under `src/` in
 Node, with jsdom for a file that starts with `// @vitest-environment jsdom`.
+Its plugins are the ones of the build that the tests need: the standard
+decorators and the React plugin for JSX. `src/tsconfig.json` type-checks the
+tests with the DOM and Node; it sits in `src/` so that an editor finds it for a
+test file, which the environment config next to the test excludes.
+
 `@freelensapp/extensions` is aliased to `test/freelens-extensions.ts`: the
-real package reads the API off a global that only the host sets, so it cannot
-run in a test. The stub covers only what the tests use, at runtime; the type
-check uses the real declaration. So a test that reaches a member the stub lacks
-compiles and fails on `undefined`: add the member to the stub, as small as the
-test needs. The other host modules are not stubbed: `react`, `mobx` and
+real package is a shim that reads `Common`, `Main` and `Renderer` off
+`globalThis.FreelensExtensionApi`, which only the host sets, so it throws in a
+test. The stub covers only what the tests use, at runtime; the type check uses
+the real declaration. So a test that reaches a member the stub lacks compiles
+and fails on `undefined`: add the member to the stub, as small as the test
+needs. Its `LensExtensionKubeObject.getStore()` throws, as the host's does for
+a version that is not served; a test that needs a store spies on `getStore` of
+its class. The other host modules are not stubbed: `react`, `mobx` and
 `mobx-react` resolve to the devDependencies, the host's versions.
 
 Tests import what they use from `vitest`
 (`import { describe, expect, it, vi } from "vitest"`); no tsconfig declares
 the globals. `globals: true` stays on at runtime only, because React Testing
 Library registers its automatic cleanup only when `afterEach` is a global.
-`test:unit` runs with `--pool=threads`.
 
 ## Lint and CI
 
 ### Biome
 
-`biome.jsonc` has the formatter, import groups and rules of Freelens, and
-leaves `.svg` files out. Two overrides are specific to the extension:
-`style/noRestrictedImports` keeps `vitest` and the testing helpers of React
-out of the extension's code, and `correctness/noNodejsModules` rejects a Node
-builtin import in `src/renderer/`, tests left out. Every path in an override
-starts with `**/`: Trunk runs Biome from a sandbox outside the repository,
-where a path anchored at the repository root matches no file. The Biome
-commands in `.trunk/trunk.yaml` pass `--vcs-use-ignore-file=false` for the
-same reason. Renovate updates Biome, and `biome-migrate.yaml` runs
-`biome migrate` on the Renovate branch so that the bump and its migration are
-one pull request. Biome does not read SCSS; Trunk formats it with Prettier.
+`biome.jsonc` has the formatter, import groups and rules of Freelens. Biome
+formats SCSS, YAML and Markdown too, as in Freelens, so Trunk runs no Prettier
+or markdownlint; yamllint still checks YAML. Two overrides are specific to the
+extension: `style/noRestrictedImports` keeps `vitest` and the testing helpers
+of React out of the extension's code, and `correctness/noNodejsModules`
+rejects a Node builtin import in `src/renderer/` and `src/common/`, tests left
+out. Every path in an override starts with `**/`: Trunk runs Biome from a
+sandbox outside the repository, where a path anchored at the repository root
+matches no file. The Biome commands in `.trunk/trunk.yaml` pass
+`--vcs-use-ignore-file=false` for the same reason, and no `--config-path`,
+which would turn the parser options off.
+
+`biome.jsonc` leaves out `.svg` files, the Kubernetes manifests in `examples/`,
+whose sequences stay unindented as kubectl writes them and which yamlfmt
+formats with `examples/.yamlfmt.yaml`, and `pnpm-lock.yaml`,
+`pnpm-workspace.yaml` and `.trunk/`, which pnpm and Trunk write.
+
+Renovate updates Biome, and `biome-migrate.yaml` runs `biome migrate` on the
+Renovate branch so that the bump and its migration are one pull request.
 
 ### Knip
 
@@ -372,10 +568,10 @@ one pull request. Biome does not read SCSS; Trunk formats it with Prettier.
 unused; remove it rather than ignore it. The host-provided modules are in
 `ignoreDependencies`: they are devDependencies for their types, which the
 production pass would report as unlisted. The Vite plugin is off and
-`electron.vite.config.js` is an entry instead, `svgo` is on for
-`svgo.config.mjs`, `out/**` is ignored so that a built bundle is not analysed,
-and `project` leaves out the CSS module declarations, which knip would
-otherwise report as unused.
+`vite.config.mjs` is an entry instead, `svgo` is on for `svgo.config.mjs`,
+the probes in `environment-tests/` are entries, `dist/**` is ignored so that a
+built bundle is not analysed, and `project` leaves out the CSS module
+declarations, which knip would otherwise report as unused.
 
 ### Workflows
 
@@ -391,6 +587,11 @@ otherwise report as unused.
 | `npm-version.yaml`, `tag.yaml`, `release.yaml`            | the version bump pull request, the tag when it merges (or `/tag` by a collaborator), the npm publish and GitHub release of a `v*` tag |
 | `claude.yaml`, `claude-task.yaml`                         | Claude Code on `@claude` and on dispatch ("GitHub Actions (Claude Code Action) Rules")                                                |
 
+The type check has a workflow of its own, which runs every program, tests,
+tooling and environment tests included, and `check.yaml` builds without the
+type check, so it does not run twice. The integration tests of the template,
+which drive Freelens dev over CDP, are not part of this repository yet.
+
 The workflows that act on a comment (`/tag`, `/rerun`) require the comment's
 author to be OWNER, MEMBER or COLLABORATOR; `claude.yaml` goes further and
 checks write access through the API, because MEMBER and COLLABORATOR do not
@@ -399,10 +600,10 @@ publishes with `NPM_TOKEN` or, without it, with npm provenance over OIDC.
 
 ## Code Style
 
-- **Biome** formats **TypeScript/TSX, JS, JSON, CSS, HTML**: double quotes, semicolons, trailing commas, 2-space indent, 120 char line width — use `pnpm biome:fix`
-- **Trunk** formats **Markdown, YAML, SCSS** (with Prettier), and other formats not covered by biome — use `pnpm trunk:fix`
+- **Biome** formats **TypeScript/TSX, JS, JSON, CSS, SCSS, HTML, YAML, Markdown**: double quotes, semicolons, trailing commas, 2-space indent, 120 char line width — use `pnpm biome:fix`
+- **Trunk** formats **TOML and shell scripts**, and runs the linters for formats not covered by Biome (yamllint, actionlint, shellcheck) — use `pnpm trunk:fix`
 - Import order (enforced by biome organizeImports): built-in modules → `@freelensapp/**` → packages → relative paths
-- React 17; JSX compiles to `react/jsx-runtime` imports, which the build maps to the host's React
+- React 19; JSX compiles to `react/jsx-runtime` imports, which the build maps to the host's React
 - **No emoji** in Markdown files (`.md`), comments, or any source code
 
 ## Security
@@ -434,14 +635,16 @@ Extensions run in the same multi-process model as the Freelens host:
 - **Main process** (`src/main/`) — Node.js environment, extension lifecycle
 - **Renderer process** (`src/renderer/`) — Chromium browser, UI components
 
+Code in `src/common/` would be shared between both processes.
+
 ## Troubleshooting
 
 ### Changes Not Appearing
 
-1. Check that files are not in ignored output directories (`out/`, `node_modules/`)
+1. Check that files are not in ignored output directories (`dist/`, `node_modules/`)
 2. Full clean and rebuild: `pnpm clean:all && pnpm install && pnpm build`
-3. With an in-place install, Freelens reloads the extension after a rebuild; restart Freelens after a change to
-   `main` or `renderer` in `package.json`, and reinstall an extension installed from a tarball
+3. With a directory install and `pnpm dev` running, look for a refused reload in the Freelens log, and restart
+   Freelens after a change to `main` or `renderer` in `package.json`; reinstall an extension installed from a tarball
 
 ### Build Failures
 
@@ -456,7 +659,7 @@ Extensions run in the same multi-process model as the Freelens host:
 2. Check the terminal where Freelens was launched for main process errors
 3. Look for stack traces with file:line numbers
 4. Verify all CRD objects have proper `static readonly` properties (kind, apiBase, crd)
-5. Validate both with `pnpm type:check` **and** `pnpm build` — runtime failures can appear only in bundled `out/` code
+5. Validate both with `pnpm type:check` **and** `pnpm build` — runtime failures can appear only in bundled `dist/` code
 
 ## Best Practices
 
@@ -464,8 +667,8 @@ Extensions run in the same multi-process model as the Freelens host:
 2. **Follow existing patterns** — grep for similar implementations before creating new ones
 3. **Test changes** before committing
 4. **Run validation before committing:** `pnpm lint:fix && pnpm type:check && pnpm test:unit`
-5. **For TypeScript/TSX, JS, JSON, CSS, HTML files:** run `pnpm biome:fix` (or `biome check` directly if `biome` is installed locally)
-6. **For Markdown, YAML, SCSS and other formats:** run `pnpm trunk:fix` (or `trunk check` directly if `trunk` is installed locally)
+5. **For TypeScript/TSX, JS, JSON, CSS, SCSS, HTML, YAML and Markdown files:** run `pnpm biome:fix` (or `biome check` directly if `biome` is installed locally)
+6. **For other formats:** run `pnpm trunk:fix` (or `trunk check` directly if `trunk` is installed locally)
 7. **Full build** when in doubt about cached state: `pnpm clean:all && pnpm install && pnpm build`
 8. **Do not use Anthropic Fable for coding tasks** — Fable may be used only for planning,
    analysis, and thinking through problems. When writing or editing code,
@@ -495,6 +698,7 @@ When reviewing code and proposing fixes:
    ```
 
    You can generate this from the terminal with:
+
    ```bash
    git diff -u -- path/to/file
    ```
@@ -526,9 +730,9 @@ When reviewing code and proposing fixes:
    - Use GitHub's `suggestion` block for small targeted fixes so the PR
      author can accept the change with a single click:
 
-     ````suggestion
+     ```suggestion
      <same unified-diff format as shown above>
-     ````
+     ```
 
    - For larger multi-file changes, use `diff -u` blocks in a regular
      comment instead, with the proposed commit subject shown first

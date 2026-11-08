@@ -1,9 +1,10 @@
 // Minimal stub of `@freelensapp/extensions` for unit tests.
 //
-// The real package re-exports the Freelens host renderer bundle, which expects
-// a browser environment and cannot be imported under the Node-based vitest
-// runner. `vitest.config.ts` aliases the import to this file instead. The
-// package ships no mocks of its own to use in its place.
+// The published package is a shim that reads `Common`, `Main` and `Renderer`
+// off `globalThis.FreelensExtensionApi`, which the Freelens host sets before it
+// loads an extension. A Vitest process has no host, so importing the real
+// package throws. `vitest.config.ts` aliases the import to this file instead.
+// The package ships no mocks of its own to use in its place.
 //
 // Only the surface the tests exercise is stubbed here, and only at runtime: the
 // tests are type-checked against the real declaration of the package. Extend it
@@ -11,7 +12,7 @@
 import React from "react";
 import { vi } from "vitest";
 
-class KubeObject {
+class LensExtensionKubeObject {
   apiVersion?: string;
   kind?: string;
   metadata?: { name?: string; namespace?: string; creationTimestamp?: string };
@@ -27,47 +28,18 @@ class KubeObject {
     return this.metadata?.name ?? "";
   }
 
+  // An empty namespace is undefined, as the host's.
   getNs() {
-    return this.metadata?.namespace;
+    return this.metadata?.namespace || undefined;
   }
 
-  getCreationTimestamp() {
-    return this.metadata?.creationTimestamp ? new Date(this.metadata.creationTimestamp).getTime() : 0;
-  }
-}
-
-// As the host's: an api created from the model class, whose `apiBase` comes
-// from the `objectConstructor` static.
-class KubeApi {
-  objectConstructor: unknown;
-  apiBase: string | undefined;
-
-  constructor(opts: { objectConstructor: typeof KubeObject & { apiBase?: string }; autoRegister?: boolean }) {
-    this.objectConstructor = opts.objectConstructor;
-    this.apiBase = opts.objectConstructor.apiBase;
+  // The host returns the store it registered for one of the class's
+  // `crd.apiVersions`, and throws when there is none. Without a host there is
+  // never one; a test that needs a store spies on `getStore` of its class.
+  static getStore(): never {
+    throw new Error(`Store for ${this.name} is not registered. Extension won't work correctly.`);
   }
 }
-
-// As the host's store: keeps its items in an array and knows its api.
-class KubeObjectStore {
-  items: unknown[] = [];
-  api: unknown;
-
-  constructor(api?: unknown) {
-    this.api = api;
-  }
-
-  async patch(_item: unknown, _patch: unknown, _strategy?: unknown): Promise<unknown> {
-    return undefined;
-  }
-}
-
-const apiManager = {
-  registerStore: vi.fn(),
-  // Returns undefined, as the host's does for an apiBase the cluster does not
-  // serve. Tests that need a store spy on this method (see the pages' tests).
-  getStore: vi.fn(() => undefined),
-};
 
 // Host components, reduced to what the tests render. The pages reach them all
 // when their renderTableContents runs.
@@ -101,29 +73,6 @@ function WithTooltip({ children }: { children?: React.ReactNode; tooltip?: React
   return React.createElement("span", null, children);
 }
 
-function Icon({ material, title, interactive }: { material?: string; title?: string; interactive?: boolean }) {
-  return React.createElement("span", { title, "data-interactive": interactive }, material ?? "");
-}
-
-function MenuItem({ children, onClick }: { children?: React.ReactNode; onClick?: (event: unknown) => void }) {
-  return React.createElement("div", { onClick }, children);
-}
-
-function DrawerItem({
-  name,
-  children,
-  hidden,
-  labelsOnly,
-}: {
-  name?: React.ReactNode;
-  children?: React.ReactNode;
-  hidden?: boolean;
-  labelsOnly?: boolean;
-}) {
-  if (hidden) return null;
-  return React.createElement("div", { "data-labels-only": labelsOnly }, name, children);
-}
-
 interface KubeObjectListLayoutProps {
   store: { items: unknown[] };
   renderTableContents: (item: unknown) => React.ReactNode[];
@@ -144,19 +93,15 @@ export const Renderer = {
   Component: {
     Badge,
     BadgeBoolean,
-    DrawerItem,
-    Icon,
     KubeObjectAge,
     KubeObjectListLayout,
     LinkToNamespace,
-    MenuItem,
     WithTooltip,
   },
   K8sApi: {
-    KubeObject,
-    KubeApi,
-    KubeObjectStore,
-    apiManager,
+    LensExtensionKubeObject,
+    KubeApi: class KubeApi {},
+    KubeObjectStore: class KubeObjectStore {},
   },
 };
 
