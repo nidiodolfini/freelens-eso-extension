@@ -26,14 +26,18 @@ const sortingCallbacks = {
   age: (object: KubeObject) => object.getCreationTimestamp(),
 };
 
-const renderTableHeader: { title: string; sortBy: keyof typeof sortingCallbacks; className?: string }[] = [
-  { title: "Name", sortBy: "name" },
-  { title: "Store Type", sortBy: "storeType", className: styles.storeType },
-  { title: "Store", sortBy: "store", className: styles.store },
-  { title: "Refresh Interval", sortBy: "refreshInterval", className: styles.refreshInterval },
-  { title: "Namespaces", sortBy: "namespaces", className: styles.namespaces },
-  { title: "Ready", sortBy: "ready", className: styles.ready },
-  { title: "Age", sortBy: "age", className: styles.age },
+type ColumnId = keyof typeof sortingCallbacks;
+
+// Every column has an id, the key of its sorting callback: the host makes a column with an id resizable, and lets the
+// user hide it from the menu of a configurable list, which keeps the list readable in a narrow window.
+const renderTableHeader: { title: string; sortBy: ColumnId; id: ColumnId; className?: string }[] = [
+  { title: "Name", sortBy: "name", id: "name" },
+  { title: "Store Type", sortBy: "storeType", id: "storeType", className: styles.storeType },
+  { title: "Store", sortBy: "store", id: "store", className: styles.store },
+  { title: "Refresh Interval", sortBy: "refreshInterval", id: "refreshInterval", className: styles.refreshInterval },
+  { title: "Namespaces", sortBy: "namespaces", id: "namespaces", className: styles.namespaces },
+  { title: "Ready", sortBy: "ready", id: "ready", className: styles.ready },
+  { title: "Age", sortBy: "age", id: "age", className: styles.age },
 ];
 
 // The columns mirror `kubectl get ces`: STORE, REFRESH INTERVAL, READY, plus the store type and the namespaces the
@@ -46,6 +50,7 @@ export const ClusterExternalSecretsPage = observer(() => {
       tableId={`${KubeObject.crd.plural}Table`}
       className={styles.page}
       store={store}
+      isConfigurable
       sortingCallbacks={sortingCallbacks}
       searchFilters={[(object: KubeObject) => object.getSearchFields()]}
       renderHeaderTitle={KubeObject.crd.title}
@@ -56,11 +61,11 @@ export const ClusterExternalSecretsPage = observer(() => {
 
         return [
           <WithTooltip>{object.getName()}</WithTooltip>,
-          KubeObject.getStoreType(object),
-          KubeObject.getStoreName(object) ?? "-",
-          KubeObject.getRefreshInterval(object) ?? "-",
+          <WithTooltip>{KubeObject.getStoreType(object)}</WithTooltip>,
+          <WithTooltip>{KubeObject.getStoreName(object) ?? "-"}</WithTooltip>,
+          <WithTooltip>{KubeObject.getRefreshInterval(object) ?? "-"}</WithTooltip>,
           <>
-            <WithTooltip tooltip={provisioned.join(", ")}>{String(provisioned.length)}</WithTooltip>
+            <WithTooltip tooltip={provisioned.join(", ") || "none"}>{String(provisioned.length)}</WithTooltip>
             {failed.length > 0 && (
               <Badge
                 label={`${failed.length} failed`}
