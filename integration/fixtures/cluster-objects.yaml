@@ -1,5 +1,6 @@
 # The cluster-scoped test objects. Deleting the CRDs at the end of a session
-# deletes them too.
+# deletes them too. The session applies them in the version the ESO release
+# serves (esoApiVersion in extension-helpers.ts).
 apiVersion: external-secrets.io/v1
 kind: ClusterSecretStore
 metadata:

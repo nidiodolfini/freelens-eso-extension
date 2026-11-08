@@ -5,10 +5,12 @@
 
 // One session with the CRDs of the five kinds of one ESO release,
 // TEST_ESO_VERSION or the one the types follow, and a test object of each kind,
-// without the controller. The session disconnects the kind cluster, sets up
-// the CRDs, connects the cluster again, so that the app reads the CRDs anew,
-// and leaves the cluster disconnected; it does not depend on another test file
-// having run.
+// in the version the release serves, without the controller. The workflow runs
+// it with a release that serves external-secrets.io/v1 and with one that serves
+// only external-secrets.io/v1beta1. The session disconnects the kind cluster,
+// sets up the CRDs, connects the cluster again, so that the app reads the CRDs
+// anew, and leaves the cluster disconnected; it does not depend on another test
+// file having run.
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -18,6 +20,7 @@ import {
   detailsItemValue,
   detailsObjectLink,
   disconnectKindCluster,
+  esoApiVersion,
   esoVersion,
   expectDetailsApiVersion,
   installExtension,
@@ -43,7 +46,7 @@ interface KindView {
   kind: string;
   /** The `id` of the kind's `clusterPages` registration. */
   pageId: string;
-  /** The API version the page picks, the only one the CRD serves. */
+  /** The API version the page picks, the one the release serves of the kind. */
   apiVersion: string;
   /** An item that the extension's details panel shows for the test object. */
   detailsItem: string;
@@ -58,7 +61,7 @@ const kindViews: KindView[] = [
   {
     kind: "ExternalSecret",
     pageId: "external-secrets",
-    apiVersion: "external-secrets.io/v1",
+    apiVersion: esoApiVersion,
     detailsItem: "Target Secret",
     menuItems: ["Force Sync"],
     resource: "externalsecret",
@@ -67,7 +70,7 @@ const kindViews: KindView[] = [
   {
     kind: "ClusterExternalSecret",
     pageId: "cluster-external-secrets",
-    apiVersion: "external-secrets.io/v1",
+    apiVersion: esoApiVersion,
     detailsItem: "External Secret Name",
     menuItems: ["Force Sync"],
     resource: "clusterexternalsecret",
@@ -85,7 +88,7 @@ const kindViews: KindView[] = [
   {
     kind: "SecretStore",
     pageId: "secret-stores",
-    apiVersion: "external-secrets.io/v1",
+    apiVersion: esoApiVersion,
     detailsItem: "Provider",
     menuItems: [],
     resource: "secretstore",
@@ -94,7 +97,7 @@ const kindViews: KindView[] = [
   {
     kind: "ClusterSecretStore",
     pageId: "cluster-secret-stores",
-    apiVersion: "external-secrets.io/v1",
+    apiVersion: esoApiVersion,
     detailsItem: "Provider",
     menuItems: [],
     resource: "clustersecretstore",
@@ -195,7 +198,7 @@ describe.skipIf(!(await appReady({ cluster: true })))(`External Secrets views wi
     await waitForDetailsItem(frame, "Provider");
 
     expect(await detailsObjectLink(frame)).toBe(
-      `/apis/external-secrets.io/v1/namespaces/${testNamespace}/secretstores/${testObjectName}`,
+      `/apis/${esoApiVersion}/namespaces/${testNamespace}/secretstores/${testObjectName}`,
     );
   });
 
@@ -212,7 +215,7 @@ describe.skipIf(!(await appReady({ cluster: true })))(`External Secrets views wi
     await waitForDetailsItem(frame, "Target Secret");
 
     expect(await detailsObjectLink(frame)).toBe(
-      `/apis/external-secrets.io/v1/namespaces/${testNamespace}/externalsecrets/${testObjectName}`,
+      `/apis/${esoApiVersion}/namespaces/${testNamespace}/externalsecrets/${testObjectName}`,
     );
   });
 });

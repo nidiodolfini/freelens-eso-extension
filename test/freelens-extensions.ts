@@ -33,9 +33,16 @@ class LensExtensionKubeObject {
     return this.metadata?.namespace || undefined;
   }
 
-  // The host returns the store it registered for one of the class's
-  // `crd.apiVersions`, and throws when there is none. Without a host there is
-  // never one; a test that needs a store spies on `getStore` of its class.
+  // The host returns the API it registered for the first of the class's
+  // `crd.apiVersions` that the cluster serves, and throws when there is none.
+  // Without a host there is never one; a test that needs an API spies on
+  // `getApi` of its class.
+  static getApi(): never {
+    throw new Error(`API for ${this.name} is not registered. Extension won't work correctly.`);
+  }
+
+  // The host returns the store of that API, and throws when there is none. A
+  // test that needs a store spies on `getStore` of its class.
   static getStore(): never {
     throw new Error(`Store for ${this.name} is not registered. Extension won't work correctly.`);
   }

@@ -15,11 +15,11 @@ describe("ClusterSecretStore (v1)", () => {
     });
 
   describe("metadata", () => {
-    it("is cluster-scoped and serves external-secrets.io/v1", () => {
+    it("is cluster-scoped and serves external-secrets.io/v1, then v1beta1 where v1 is not served", () => {
       expect(ClusterSecretStore.kind).toBe("ClusterSecretStore");
       expect(ClusterSecretStore.namespaced).toBe(false);
       expect(ClusterSecretStore.apiBase).toBe("/apis/external-secrets.io/v1/clustersecretstores");
-      expect(ClusterSecretStore.crd.apiVersions).toEqual(["external-secrets.io/v1"]);
+      expect(ClusterSecretStore.crd.apiVersions).toEqual(["external-secrets.io/v1", "external-secrets.io/v1beta1"]);
       expect(ClusterSecretStore.crd.plural).toBe("clustersecretstores");
       expect(ClusterSecretStore.crd.shortNames).toEqual(["css"]);
     });

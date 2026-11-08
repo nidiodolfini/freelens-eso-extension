@@ -9,23 +9,41 @@ import { SecretStore } from "./secretstore/secretstore-v1";
 export interface KubeObjectKind {
   readonly apiBase: string;
   readonly namespaced: boolean;
+  /**
+   * The API the host registered for the kind, in the first of its
+   * `crd.apiVersions` that the cluster serves; an extension's model has it,
+   * and it throws when the cluster serves none.
+   */
+  getApi?(): { readonly apiBase: string };
 }
 
 /**
- * The selfLink of an object of a kind, from the kind's `apiBase`:
+ * The selfLink of an object of a kind, from the `apiBase` of the API the host
+ * registered for the kind, so that the link names the version the cluster
+ * serves, or from the kind's static `apiBase` when there is no such API:
  * `/apis/<group>/<version>/<plural>` becomes
  * `/apis/<group>/<version>/namespaces/<namespace>/<plural>/<name>` for a
  * namespaced kind, and `/apis/<group>/<version>/<plural>/<name>` otherwise.
  * `Renderer.Navigation.getMaybeDetailsUrl` turns it into the URL that opens
- * the object's details drawer.
+ * the object's details drawer, which finds the object through the API of the
+ * version the link names.
  */
 export function selfLinkOf(kind: KubeObjectKind, name: string, namespace?: string): string {
-  const slash = kind.apiBase.lastIndexOf("/");
-  const prefix = kind.apiBase.slice(0, slash);
-  const plural = kind.apiBase.slice(slash + 1);
+  const apiBase = servedApiBase(kind);
+  const slash = apiBase.lastIndexOf("/");
+  const prefix = apiBase.slice(0, slash);
+  const plural = apiBase.slice(slash + 1);
   return kind.namespaced && namespace
     ? `${prefix}/namespaces/${namespace}/${plural}/${name}`
     : `${prefix}/${plural}/${name}`;
+}
+
+function servedApiBase(kind: KubeObjectKind): string {
+  try {
+    return kind.getApi?.().apiBase ?? kind.apiBase;
+  } catch {
+    return kind.apiBase;
+  }
 }
 
 /**

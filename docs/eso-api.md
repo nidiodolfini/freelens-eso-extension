@@ -39,6 +39,8 @@
   (abril de 2025) trouxe o `v1` como storage, com o schema idêntico ao do `v1beta1` e sem
   webhook de conversão, manteve o `v1beta1` servido e tirou o `v1alpha1`. O 0.17 (maio de
   2025) deixou de servir o `v1beta1`. O PushSecret serve só `v1alpha1` em todas essas releases.
+  Por isso os modelos desses quatro kinds listam `v1` e depois `v1beta1` em `crd.apiVersions`:
+  o host usa o primeiro que o cluster serve, `v1beta1` só num ESO anterior ao 0.16.
 - **Category comum:** `external-secrets` (agrupa todos os recursos no kubectl/UI).
 - **Short names:** ExternalSecret = `es`, ClusterExternalSecret = `ces`, PushSecret = `ps`,
   SecretStore = `ss`, ClusterSecretStore = `css`.

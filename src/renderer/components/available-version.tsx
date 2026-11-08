@@ -7,26 +7,26 @@ export interface AvailableVersionPageProps {
 }
 
 /**
- * Configuration for a single API version variant.
+ * A model and its page. The model serves the versions of its `crd.apiVersions`, and the host picks the first of them
+ * that the cluster serves.
  */
 interface VersionVariant<T extends AvailableVersionPageProps> {
   kubeObjectClass: typeof Renderer.K8sApi.LensExtensionKubeObject<any, any, any>;
   PageComponent: React.ComponentType<T>;
-  version: string;
 }
 
 /**
  * Creates a page component that automatically selects the correct API version based on cluster availability.
  *
- * Tries versions in order and renders the first available one.
- * Shows a helpful message if no versions are available (CRD not installed).
+ * Tries the models in order and renders the page of the first one the host has a store for.
+ * Shows a helpful message, with every version of the models, if it has none (CRD not installed).
  *
  * The component is an observer: `getStore()` reads the host's observable API registry, so the page renders again
  * when the host registers an API after the page was first rendered, as it does for a page opened while the cluster
  * frame is still loading its CRDs.
  *
  * @param resourceName - Human-readable resource name (e.g., "OCI Repositories")
- * @param variants - Array of version variants, ordered by preference
+ * @param variants - Array of models and their pages, ordered by preference
  * @returns A page component that auto-detects a valid API version if present
  *
  * @example
@@ -34,8 +34,8 @@ interface VersionVariant<T extends AvailableVersionPageProps> {
  * createAvailableVersionPage(
  *   "Examples",
  *   [
- *     { kubeObjectClass: ExamplesV1alpha2, PageComponent: ExamplesV1alpha2, version: "v1alpha2" },
- *     { kubeObjectClass: ExamplesV1alpha1, PageComponent: ExamplesV1alpha1, version: "v1alpha1" },
+ *     { kubeObjectClass: ExamplesV1alpha2, PageComponent: ExamplesV1alpha2Page },
+ *     { kubeObjectClass: ExamplesV1alpha1, PageComponent: ExamplesV1alpha1Page },
  *   ]
  * );
  * ```
@@ -44,25 +44,27 @@ export function createAvailableVersionPage<T extends AvailableVersionPageProps>(
   resourceName: string,
   variants: VersionVariant<T>[],
 ): React.ComponentType<T> {
+  const versionsOf = (variant: VersionVariant<T>) => variant.kubeObjectClass.crd?.apiVersions ?? [];
+
   return observer((props: T) => {
     for (const variant of variants) {
       try {
         const store = variant.kubeObjectClass.getStore();
         if (store) {
           Common.logger.debug(
-            `[${props.extension.name}]: Rendering ${resourceName} page with API version ${variant.version}`,
+            `[${props.extension.name}]: Rendering ${resourceName} page with API version ${store.api.apiVersionWithGroup}`,
           );
           return <variant.PageComponent {...props} />;
         }
       } catch (error) {
         Common.logger.debug(
-          `[${props.extension.name}]: API version ${variant.version} not available for ${resourceName}: ${error}`,
+          `[${props.extension.name}]: API versions ${versionsOf(variant).join(", ")} not available for ${resourceName}: ${error}`,
         );
       }
     }
 
     // No version available - CRD not installed in cluster
-    const triedVersions = variants.map((v) => v.version).join(", ");
+    const triedVersions = variants.flatMap(versionsOf).join(", ");
     Common.logger.info(
       `[${props.extension.name}]: ${resourceName} CRD not found in cluster (tried versions: ${triedVersions})`,
     );

@@ -47,6 +47,15 @@ const fixturesDir = path.join(extensionDir, "integration", "fixtures");
 // extension follow (docs/eso-api.md).
 export const esoVersion = process.env.TEST_ESO_VERSION || "v2.14.0";
 
+// The version that the release serves of ExternalSecret, ClusterExternalSecret,
+// SecretStore and ClusterSecretStore, which is the version the extension picks:
+// external-secrets.io/v1 from ESO 0.16 on, and before it external-secrets.io/v1beta1,
+// with the same schema. PushSecret is at external-secrets.io/v1alpha1 in every
+// release.
+export const esoApiVersion = /^v?0\.(\d|1[0-5])\./.test(esoVersion)
+  ? "external-secrets.io/v1beta1"
+  : "external-secrets.io/v1";
+
 // The plurals of the five kinds the extension presents. The session applies
 // their CRDs from the sources of the release, and no controller: the views
 // read the API, and the test objects need no reconciliation.
@@ -727,8 +736,8 @@ export function setUpCluster() {
 
   kubectl("wait", "--for=condition=Established", ...crds, "--timeout=120s");
   kubectl("create", "namespace", testNamespace);
-  kubectl("apply", "-f", path.join(fixturesDir, "cluster-objects.yaml"));
-  kubectl("apply", "-n", testNamespace, "-f", path.join(fixturesDir, "objects.yaml"));
+  applyFixture("cluster-objects.yaml");
+  applyFixture("objects.yaml", "-n", testNamespace);
 
   // The Secret of the ExternalSecret, as the controller writes it with the
   // default creation policy, Owner: the managed label, and an owner reference,
@@ -742,7 +751,7 @@ export function setUpCluster() {
       namespace: testNamespace,
       labels: { "reconcile.external-secrets.io/managed": "true" },
       ownerReferences: [
-        { apiVersion: "external-secrets.io/v1", kind: "ExternalSecret", name: testObjectName, uid, controller: true },
+        { apiVersion: esoApiVersion, kind: "ExternalSecret", name: testObjectName, uid, controller: true },
       ],
     },
     type: "Opaque",
@@ -750,6 +759,18 @@ export function setUpCluster() {
   };
 
   runKubectl(["apply", "-f", "-"], { input: JSON.stringify(secret) });
+}
+
+/**
+ * Applies a fixture, with its objects of external-secrets.io/v1 in the version
+ * that the release serves, `esoApiVersion`.
+ */
+function applyFixture(file: string, ...args: string[]) {
+  const manifest = fs
+    .readFileSync(path.join(fixturesDir, file), "utf8")
+    .replace(/^apiVersion: external-secrets\.io\/v1$/gm, `apiVersion: ${esoApiVersion}`);
+
+  runKubectl(["apply", ...args, "-f", "-"], { input: manifest });
 }
 
 /**

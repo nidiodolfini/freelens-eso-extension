@@ -67,8 +67,9 @@ stores and PushSecret do not support this action, so they have no menu item.
 
 - Freelens 2.0 or newer (extension API v2). Freelens 1.x needs a 1.x release of the
   extension.
-- A cluster with the External Secrets Operator 0.16 or newer, the first release that serves
-  `external-secrets.io/v1` (see [Supported API versions](#supported-api-versions)).
+- A cluster with the External Secrets Operator installed: `external-secrets.io/v1`, which ESO
+  serves from 0.16 on, or `v1beta1` of an older release (see
+  [Supported API versions](#supported-api-versions)).
 
 ## Installation
 
@@ -193,7 +194,9 @@ Optional variables:
 
 - `TEST_KIND_CLUSTER_NAME`: the kind cluster, `kind` by default, used through the context
   `kind-<name>`.
-- `TEST_ESO_VERSION`: the ESO release whose CRDs are applied, `v2.14.0` by default.
+- `TEST_ESO_VERSION`: the ESO release whose CRDs are applied, `v2.14.0` by default. The test
+  objects are applied in the version it serves, `external-secrets.io/v1`, or `v1beta1` for a
+  release older than 0.16; the workflow runs the tests with `v2.14.0` and with `v0.15.1`.
 - `FREELENS_CDP_URL`: the CDP endpoint of Freelens dev, `http://127.0.0.1:9223` by default.
 - `FREELENS_MAIN_LOG`: a log of the main process to check for errors, such as its `lens.log`.
   Without it only the renderer's errors are checked.
@@ -239,15 +242,14 @@ stylesheet next to the renderer entry.
 ## Supported API versions
 
 The extension supports **`external-secrets.io/v1`** for ExternalSecret, ClusterExternalSecret,
-SecretStore and ClusterSecretStore, and **`external-secrets.io/v1alpha1`** for PushSecret, the
-only version its CRD serves, one version per kind.
+SecretStore and ClusterSecretStore, with a fallback to **`external-secrets.io/v1beta1`**, and
+**`external-secrets.io/v1alpha1`** for PushSecret, the only version its CRD serves.
 
 ESO 0.16 (April 2025) introduced `v1` for those four kinds, with the same schema as `v1beta1`,
-and ESO 0.17 (May 2025) stopped serving `v1beta1`. An older ESO serves `v1beta1` only: there
-the pages of the four kinds show "Not Available", and the kinds are still left out of the
-Custom Resources tree, because Freelens matches them by group and plural, not by version.
-Upgrade ESO to 0.16 or newer; until then, the command palette still opens Freelens's own list
-of each kind.
+and ESO 0.17 (May 2025) stopped serving `v1beta1`. So the extension uses `v1` wherever the
+cluster serves it, and `v1beta1` on an older ESO, which serves only that: the pages, the
+details, Force Sync and the links work the same with both. The fields that ESO has added to
+`v1` since 0.16 are absent from the objects of an older release, and so from their details.
 
 ## Publishing a release
 

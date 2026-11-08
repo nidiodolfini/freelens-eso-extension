@@ -18,11 +18,11 @@ describe("ExternalSecret (v1)", () => {
     });
 
   describe("metadata", () => {
-    it("is namespaced and serves external-secrets.io/v1", () => {
+    it("is namespaced and serves external-secrets.io/v1, then v1beta1 where v1 is not served", () => {
       expect(ExternalSecret.kind).toBe("ExternalSecret");
       expect(ExternalSecret.namespaced).toBe(true);
       expect(ExternalSecret.apiBase).toBe("/apis/external-secrets.io/v1/externalsecrets");
-      expect(ExternalSecret.crd.apiVersions).toEqual(["external-secrets.io/v1"]);
+      expect(ExternalSecret.crd.apiVersions).toEqual(["external-secrets.io/v1", "external-secrets.io/v1beta1"]);
       expect(ExternalSecret.crd.plural).toBe("externalsecrets");
       expect(ExternalSecret.crd.shortNames).toEqual(["es"]);
     });
