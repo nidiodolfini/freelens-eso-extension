@@ -6,9 +6,25 @@ import {
   formatPushSecretDataTo,
   formatPushSecretStoreRef,
   formatRemoteRef,
+  formatStoreRefreshInterval,
   getPushSecretStatusText,
   getReadyMessage,
 } from "./store-helpers";
+
+describe("formatStoreRefreshInterval", () => {
+  it("reads a number as seconds, the legacy form", () => {
+    expect(formatStoreRefreshInterval(60)).toBe("60s");
+  });
+
+  it("keeps a Go duration string", () => {
+    expect(formatStoreRefreshInterval("5m")).toBe("5m");
+  });
+
+  it("is undefined when the field is unset", () => {
+    expect(formatStoreRefreshInterval(undefined)).toBeUndefined();
+    expect(formatStoreRefreshInterval("")).toBeUndefined();
+  });
+});
 
 describe("formatLabelSelector", () => {
   it("joins the match labels and the expressions", () => {

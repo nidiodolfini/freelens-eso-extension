@@ -2,22 +2,27 @@ import { Renderer } from "@freelensapp/extensions";
 import * as MobxReact from "mobx-react";
 import { ClusterExternalSecret } from "../api/clusterexternalsecret/clusterexternalsecret-v1";
 import { storeSelfLink } from "../api/links";
-import { formatLabelSelector, getConditionClass } from "../api/store-helpers";
+import { formatLabelSelector } from "../api/store-helpers";
 import { ExternalSecretDataItems } from "./external-secret-data";
 
 const { observer } = MobxReact;
 
 const {
-  Component: { Badge, BadgeBoolean, DrawerItem, MaybeLink },
+  Component: { Badge, DrawerItem, MaybeLink },
   Navigation: { getMaybeDetailsUrl },
 } = Renderer;
 
 export type ClusterExternalSecretDetailsProps = Renderer.Component.KubeObjectDetailsProps<ClusterExternalSecret>;
 
+/**
+ * The details of a ClusterExternalSecret. The host's own details of a custom resource, next to the panel, show the
+ * printer columns of the CRD (Store, Refresh Interval, Ready) and the conditions, so the panel shows only what they
+ * leave out: the ExternalSecrets it creates, the store with its kind, the namespaces it selects, provisioned and
+ * failed, the message of the Ready condition, which the host shows only in a tooltip, and the data mappings.
+ */
 export const ClusterExternalSecretDetails = observer(({ object }: ClusterExternalSecretDetailsProps) => {
   const spec = object.spec;
   const externalSecretSpec = spec.externalSecretSpec;
-  const conditions = object.status?.conditions;
   const message = ClusterExternalSecret.getStatusMessage(object);
   const storeType = ClusterExternalSecret.getStoreType(object);
   const storeName = ClusterExternalSecret.getStoreName(object);
@@ -33,12 +38,9 @@ export const ClusterExternalSecretDetails = observer(({ object }: ClusterExterna
       <DrawerItem name="Target Secret">
         {externalSecretSpec.target?.name ?? ClusterExternalSecret.getExternalSecretName(object)}
       </DrawerItem>
-      <DrawerItem name="Store">
-        <MaybeLink to={getMaybeDetailsUrl(storeLink)}>
-          {storeType}/{storeName ?? "-"}
-        </MaybeLink>
+      <DrawerItem name="Secret Store Ref">
+        <MaybeLink to={getMaybeDetailsUrl(storeLink)}>{storeName ? `${storeType}/${storeName}` : "-"}</MaybeLink>
       </DrawerItem>
-      <DrawerItem name="Refresh Interval">{ClusterExternalSecret.getRefreshInterval(object) ?? "-"}</DrawerItem>
       <DrawerItem name="External Secret Refresh Interval">{externalSecretSpec.refreshInterval ?? "1h0m0s"}</DrawerItem>
       <DrawerItem name="Namespace Selectors" hidden={!selectors.length}>
         {selectors.map((selector) => {
@@ -59,21 +61,8 @@ export const ClusterExternalSecretDetails = observer(({ object }: ClusterExterna
           <Badge key={failure.namespace} label={failure.namespace} className="error" tooltip={failure.reason} />
         ))}
       </DrawerItem>
-      <DrawerItem name="Ready">
-        <BadgeBoolean value={ClusterExternalSecret.getReady(object)} />
-      </DrawerItem>
       <DrawerItem name="Message" hidden={!message}>
         {message}
-      </DrawerItem>
-      <DrawerItem name="Conditions" labelsOnly hidden={!conditions?.length}>
-        {conditions?.map((condition, index) => (
-          <Badge
-            key={condition.type + index}
-            label={condition.type}
-            className={getConditionClass(condition.status)}
-            tooltip={condition.message}
-          />
-        ))}
       </DrawerItem>
       <ExternalSecretDataItems spec={externalSecretSpec} />
     </>

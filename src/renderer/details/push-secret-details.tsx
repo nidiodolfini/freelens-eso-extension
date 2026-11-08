@@ -2,27 +2,28 @@ import { Renderer } from "@freelensapp/extensions";
 import * as MobxReact from "mobx-react";
 import { selfLinkOf, storeSelfLink } from "../api/links";
 import { PushSecret } from "../api/pushsecret/pushsecret-v1alpha1";
-import {
-  formatPushSecretData,
-  formatPushSecretDataTo,
-  formatPushSecretStoreRef,
-  getConditionClass,
-} from "../api/store-helpers";
+import { formatPushSecretData, formatPushSecretDataTo, formatPushSecretStoreRef } from "../api/store-helpers";
 
 const { observer } = MobxReact;
 
 const {
-  Component: { Badge, DrawerItem, MaybeLink },
+  Component: { DrawerItem, MaybeLink },
   K8sApi: { Secret },
   Navigation: { getMaybeDetailsUrl },
 } = Renderer;
 
 export type PushSecretDetailsProps = Renderer.Component.KubeObjectDetailsProps<PushSecret>;
 
+/**
+ * The details of a PushSecret. The host's own details of a custom resource, next to the panel, show the printer
+ * columns of the CRD (Status, Last Sync) and the conditions, so the panel shows only what they leave out: the source
+ * Secret and the stores as links, the refresh interval, the policies, the message of the Ready condition, which the
+ * host shows only in a tooltip, and the data mappings.
+ */
 export const PushSecretDetails = observer(({ object }: PushSecretDetailsProps) => {
-  const conditions = object.status?.conditions;
   const message = PushSecret.getStatusMessage(object);
   const secretName = PushSecret.getSecretName(object);
+  const syncedResourceVersion = PushSecret.getSyncedResourceVersion(object);
   const data = object.spec.data ?? [];
   const dataTo = object.spec.dataTo ?? [];
 
@@ -33,7 +34,7 @@ export const PushSecretDetails = observer(({ object }: PushSecretDetailsProps) =
           {PushSecret.getSourceText(object)}
         </MaybeLink>
       </DrawerItem>
-      <DrawerItem name="Stores">
+      <DrawerItem name="Secret Store Refs">
         {(object.spec.secretStoreRefs ?? []).map((ref) => {
           const text = formatPushSecretStoreRef(ref);
           return (
@@ -46,23 +47,11 @@ export const PushSecretDetails = observer(({ object }: PushSecretDetailsProps) =
       <DrawerItem name="Refresh Interval">{PushSecret.getRefreshInterval(object)}</DrawerItem>
       <DrawerItem name="Update Policy">{PushSecret.getUpdatePolicy(object)}</DrawerItem>
       <DrawerItem name="Deletion Policy">{PushSecret.getDeletionPolicy(object)}</DrawerItem>
-      <DrawerItem name="Status">
-        <Badge label={PushSecret.getStatusText(object)} className={PushSecret.getStatusClass(object)} />
-      </DrawerItem>
       <DrawerItem name="Message" hidden={!message}>
         {message}
       </DrawerItem>
-      <DrawerItem name="Last Sync">{PushSecret.getRefreshTime(object) ?? "-"}</DrawerItem>
-      <DrawerItem name="Synced Resource Version">{PushSecret.getSyncedResourceVersion(object) ?? "-"}</DrawerItem>
-      <DrawerItem name="Conditions" labelsOnly hidden={!conditions?.length}>
-        {conditions?.map((condition, index) => (
-          <Badge
-            key={condition.type + index}
-            label={condition.reason || condition.type}
-            className={getConditionClass(condition.status)}
-            tooltip={condition.message}
-          />
-        ))}
+      <DrawerItem name="Synced Resource Version" hidden={!syncedResourceVersion}>
+        {syncedResourceVersion}
       </DrawerItem>
       <DrawerItem name="Data" hidden={!data.length}>
         {data.map((entry) => {

@@ -105,6 +105,16 @@ export function getStoreProviderName(provider: SecretStoreProvider | undefined):
 }
 
 /**
+ * `spec.refreshInterval` of a store, the interval of its revalidation: a
+ * number of seconds, the legacy form, or a Go duration string. Undefined when
+ * the field is unset, and the controller's default applies.
+ */
+export function formatStoreRefreshInterval(refreshInterval: number | string | undefined): string | undefined {
+  if (refreshInterval === undefined || refreshInterval === "") return undefined;
+  return typeof refreshInterval === "number" ? `${refreshInterval}s` : refreshInterval;
+}
+
+/**
  * A label selector as one line: `a=b, c in (d, e)`, or `*` for a selector
  * that matches everything.
  */

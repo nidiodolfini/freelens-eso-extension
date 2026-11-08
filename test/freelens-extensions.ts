@@ -41,6 +41,13 @@ class LensExtensionKubeObject {
   }
 }
 
+// The host's core Secret, with the static metadata the links are built from.
+class Secret extends LensExtensionKubeObject {
+  static readonly kind = "Secret";
+  static readonly namespaced = true;
+  static readonly apiBase = "/api/v1/secrets";
+}
+
 // Host components, reduced to what the tests render. The pages reach them all
 // when their renderTableContents runs.
 function Badge({
@@ -54,7 +61,12 @@ function Badge({
   children?: React.ReactNode;
   tooltip?: React.ReactNode;
 }) {
-  return React.createElement("span", { className, title: tooltip }, label, children);
+  return React.createElement(
+    "span",
+    { className, title: typeof tooltip === "string" ? tooltip : undefined },
+    label,
+    children,
+  );
 }
 
 function BadgeBoolean({ value }: { value?: boolean }) {
@@ -73,6 +85,49 @@ function WithTooltip({ children }: { children?: React.ReactNode; tooltip?: React
   return React.createElement("span", null, children);
 }
 
+// The host's renders the time since the timestamp, such as `5m`; the stub names
+// the timestamp, so that a test can tell which one a cell shows.
+function ReactiveDuration({ timestamp }: { timestamp?: string }) {
+  return React.createElement("span", null, timestamp ? `since ${timestamp}` : "<unknown>");
+}
+
+// As the host's, without the label and value classes: the name, then the
+// value, and nothing for a hidden item. A test finds an item by `data-name`.
+function DrawerItem({
+  name,
+  children,
+  hidden,
+}: {
+  name?: React.ReactNode;
+  children?: React.ReactNode;
+  hidden?: boolean;
+}) {
+  if (hidden) return null;
+  return React.createElement(
+    "div",
+    { "data-name": typeof name === "string" ? name : undefined },
+    React.createElement("span", null, name),
+    React.createElement("span", null, children),
+  );
+}
+
+function DrawerTitle({ children }: { children?: React.ReactNode }) {
+  return React.createElement("h3", null, children);
+}
+
+// As the host's: a link when `to` is set, the children alone otherwise.
+function MaybeLink({ to, children }: { to?: string; children?: React.ReactNode }) {
+  return to ? React.createElement("a", { href: to }, children) : React.createElement("span", null, children);
+}
+
+function MenuItem({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) {
+  return React.createElement("div", { role: "menuitem", onClick }, children);
+}
+
+function Icon({ material, title }: { material?: string; title?: string }) {
+  return React.createElement("i", { title }, material);
+}
+
 interface KubeObjectListLayoutProps {
   store: { items: unknown[] };
   renderTableContents: (item: unknown) => React.ReactNode[];
@@ -80,28 +135,45 @@ interface KubeObjectListLayoutProps {
 
 // Only the part of the host's list layout where it calls back into the
 // extension: it calls `renderTableContents` for every item of the store from
-// its own render, a child of the page, and renders the cells.
-function KubeObjectListLayout({ store, renderTableContents }: KubeObjectListLayoutProps) {
-  return React.createElement(
+// its own render, a child of the page, and renders the cells. It is a mock, so
+// that a test can read the props a page passes.
+const KubeObjectListLayout = vi.fn(({ store, renderTableContents }: KubeObjectListLayoutProps) =>
+  React.createElement(
     "div",
     null,
     store.items.map((item, index) => React.createElement("div", { key: index }, ...renderTableContents(item))),
-  );
-}
+  ),
+);
 
 export const Renderer = {
   Component: {
     Badge,
     BadgeBoolean,
+    DrawerItem,
+    DrawerTitle,
+    Icon,
     KubeObjectAge,
     KubeObjectListLayout,
     LinkToNamespace,
+    MaybeLink,
+    MenuItem,
+    Notifications: {
+      ok: vi.fn(),
+      error: vi.fn(),
+    },
+    ReactiveDuration,
     WithTooltip,
   },
   K8sApi: {
     LensExtensionKubeObject,
     KubeApi: class KubeApi {},
     KubeObjectStore: class KubeObjectStore {},
+    Secret,
+  },
+  Navigation: {
+    // The host returns the URL that opens the details of the object; the stub
+    // returns the selfLink, so that a test can tell which object a link opens.
+    getMaybeDetailsUrl: (selfLink?: string) => selfLink ?? "",
   },
 };
 
