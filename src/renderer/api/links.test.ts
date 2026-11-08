@@ -1,9 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExternalSecret } from "./externalsecret/externalsecret-v1";
 import { selfLinkOf, storeSelfLink } from "./links";
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("selfLinkOf", () => {
-  it("places the namespace before the plural of a namespaced kind", () => {
+  it("builds the link in the version of the API that the host registered for the kind", () => {
+    // ESO 0.15 serves v1beta1 only, so the host registers the API of the kind in it.
+    vi.spyOn(ExternalSecret, "getApi").mockReturnValue({
+      apiBase: "/apis/external-secrets.io/v1beta1/externalsecrets",
+    } as never);
+
+    expect(selfLinkOf(ExternalSecret, "hello-world", "default")).toBe(
+      "/apis/external-secrets.io/v1beta1/namespaces/default/externalsecrets/hello-world",
+    );
+  });
+
+  it("places the namespace before the plural of a namespaced kind, in its static apiBase without an API", () => {
     expect(selfLinkOf(ExternalSecret, "hello-world", "default")).toBe(
       "/apis/external-secrets.io/v1/namespaces/default/externalsecrets/hello-world",
     );
