@@ -8,12 +8,24 @@
       flex-grow: 0.5;
     }
 
+    &.stores {
+      flex-grow: 0.9;
+    }
+
+    &.secret {
+      flex-grow: 0.6;
+    }
+
     &.provider {
       flex-grow: 0.5;
     }
 
     &.refreshInterval {
       flex-grow: 0.5;
+    }
+
+    &.namespaces {
+      flex-grow: 0.4;
     }
 
     &.status {

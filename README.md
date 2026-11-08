@@ -15,31 +15,46 @@ Proposed in [freelensapp/freelens discussion #2840](https://github.com/freelensa
 
 ## What the extension does
 
-Three cluster pages, one per ESO resource, grouped under a single sidebar entry:
+Five cluster pages, one per ESO resource, grouped under a single sidebar entry:
 
 - **External Secrets** (`es`) — columns mirroring `kubectl get es`: Name, Namespace, Store
   Type, Store, Refresh Interval, Status, Ready, Last Sync and Age.
+- **Cluster External Secrets** (`ces`) — columns mirroring `kubectl get ces`: Name, Store Type,
+  Store, Refresh Interval, the number of provisioned Namespaces (with the failed ones as a
+  badge), Ready and Age.
+- **Push Secrets** (`ps`, `external-secrets.io/v1alpha1`) — columns mirroring `kubectl get ps`:
+  Name, Namespace, the source Secret, the Stores it is pushed to, Refresh Interval, Status,
+  Ready, Last Sync and Age.
 - **Secret Stores** (`ss`) — columns mirroring `kubectl get ss`: Name, Namespace, Provider,
   Status, Capabilities, Ready and Age.
 - **Cluster Secret Stores** (`css`) — the same, without Namespace.
 
 Sync status comes from each resource's `Ready` condition and is rendered as a colored badge
 (`success` / `error` / `warning`) with the controller's reason (`SecretSynced`,
-`SecretSyncedError`, `Valid`, `ValidationFailed`, ...). When the CRD is not installed in the
-cluster, the page shows a friendly "Not Available" message.
+`SecretSyncedError`, `Valid`, `ValidationFailed`, `Synced`, `Errored`, ...). When the CRD is
+not installed in the cluster, the page shows a friendly "Not Available" message.
 
-Each resource also gets a details panel in the drawer: target Secret, store, refresh
-policy/interval, last sync time, synced resource version and the full conditions with their
-messages as tooltips.
+Each resource also gets a details panel in the drawer. An ExternalSecret shows its target
+Secret and its store as links to their details, the creation and deletion policies, the
+refresh policy and interval, the status with the message of a failed sync, the last sync time,
+the synced resource version, the conditions, and its data mappings (`data` and `dataFrom`). A
+ClusterExternalSecret adds the namespace selectors and the provisioned and failed namespaces;
+a PushSecret its source Secret, its stores, its update and deletion policies and its `data`
+and `dataTo` mappings.
 
-While the extension is enabled, the three kinds are left out of the Custom Resources tree of
+The details of a core **Secret** that the operator manages gain an "External Secrets" panel
+with a link back to the ExternalSecret that owns it, read from the Secret's owner reference and
+managed label.
+
+While the extension is enabled, the five kinds are left out of the Custom Resources tree of
 the cluster sidebar, so each of them is listed once, under "External Secrets".
 
-**Force Sync**: the `ExternalSecret` menu gains a "Force Sync" action, which writes a fresh
-timestamp to the `external-secrets.io/force-sync` annotation — the same as
-`kubectl annotate es <name> force-sync=$(date +%s) --overwrite`. The controller reconciles
-whenever the annotation changes, so the secret is refreshed immediately. `SecretStore` and
-`ClusterSecretStore` do not support this action, so they have no menu item.
+**Force Sync**: the `ExternalSecret` and `ClusterExternalSecret` menus gain a "Force Sync"
+action, which writes a fresh timestamp to the `external-secrets.io/force-sync` annotation —
+the same as `kubectl annotate es <name> force-sync=$(date +%s) --overwrite`. The controller
+reconciles whenever the annotation changes, so the secret is refreshed immediately, and a
+ClusterExternalSecret propagates it to the ExternalSecrets it manages. A notification confirms
+the request. The stores and PushSecret do not support this action, so they have no menu item.
 
 ## Requirements
 
@@ -80,15 +95,20 @@ files in `dist/`, and lists it as unverified. This is how you work on the extens
    kubectl apply -f examples/eso/secretstore.yaml
    kubectl apply -f examples/eso/clustersecretstore.yaml
    kubectl apply -f examples/eso/externalsecret.yaml
+   kubectl apply -f examples/eso/clusterexternalsecret.yaml
+   kubectl apply -f examples/eso/pushsecret.yaml
    ```
 
    These use ESO's `fake` provider, which serves the pair `/hello -> world` without touching
    any real secret backend; the ExternalSecret creates a Secret named `hello-world` with the
-   key `hello`.
+   key `hello`, the ClusterExternalSecret creates an ExternalSecret `hello-everywhere` in the
+   `default` namespace, and the PushSecret pushes the `hello-world` Secret back into
+   `fake-store`.
 
-2. Open the cluster in Freelens. The pages list `fake-store`, `fake-cluster-store` and
-   `hello-world`; the ExternalSecret details panel shows `Ready=SecretSynced` after the first
-   sync.
+2. Open the cluster in Freelens. The pages list `fake-store`, `fake-cluster-store`,
+   `hello-world` and `hello-everywhere`; the ExternalSecret details panel shows
+   `Ready=SecretSynced` after the first sync, and the details of the `hello-world` Secret link
+   back to it.
 
 3. Open the `hello-world` menu and click **Force Sync**; the "Last Sync" column updates
    within seconds as the controller reconciles.
@@ -138,15 +158,19 @@ tsconfig.base.json                               # compiler options shared by ev
 environment-tests/                               # probes that keep Node out of the renderer and the DOM out of main
 src/
   main/index.ts                                  # main entry (stateless)
-  renderer/index.tsx                             # registrations: 3 pages, details, menu, customResources
+  renderer/index.tsx                             # registrations: 5 pages, details, menu, customResources
   renderer/api/types.ts                          # ESO spec/status types
-  renderer/api/store-helpers.ts                  # condition helpers shared by the models and panels
+  renderer/api/store-helpers.ts                  # condition helpers and formatters shared by the models and panels
+  renderer/api/links.ts                          # selfLinks of objects and stores, for the links in the panels
+  renderer/api/secret-owner.ts                   # the ExternalSecret that owns a Secret, from its metadata
   renderer/api/externalsecret/externalsecret-v1.ts   # ExternalSecret model (+ Api/Store, test)
+  renderer/api/clusterexternalsecret/clusterexternalsecret-v1.ts # ClusterExternalSecret model (+ Api/Store, test)
+  renderer/api/pushsecret/pushsecret-v1alpha1.ts     # PushSecret model (+ Api/Store, test)
   renderer/api/secretstore/secretstore-v1.ts         # SecretStore model (+ Api/Store, test)
   renderer/api/clustersecretstore/clustersecretstore-v1.ts # ClusterSecretStore model (+ Api/Store, test)
-  renderer/pages/                                # 3 pages + CSS module
-  renderer/details/                              # ExternalSecret panel, StoreDetails for both stores
-  renderer/menus/                                # Force Sync (ExternalSecret)
+  renderer/pages/                                # 5 pages + CSS module
+  renderer/details/                              # one panel per kind, StoreDetails for both stores, the Secret panel
+  renderer/menus/                                # Force Sync (ExternalSecret and ClusterExternalSecret)
   renderer/icons/                                # External Secrets Operator logo (currentColor)
   renderer/components/                           # createAvailableVersionPage, error boundaries
   common/                                        # code both entries would share (none today; its tsconfig stays)
@@ -162,10 +186,12 @@ stylesheet next to the renderer entry.
 
 ## Supported API versions
 
-The extension supports **`external-secrets.io/v1` only** (one version per kind, with the
-"Not Available" page when the CRD is missing). `v1beta1` has been unserved since ESO 0.9
-(2023); to add it later, follow the same per-version model/page/details pattern and list
-both versions in `createAvailableVersionPage`, newest first.
+The extension supports **`external-secrets.io/v1`** for ExternalSecret, ClusterExternalSecret,
+SecretStore and ClusterSecretStore, and **`external-secrets.io/v1alpha1`** for PushSecret, the
+only version its CRD serves (one version per kind, with the "Not Available" page when the CRD
+is missing). `v1beta1` has been unserved since ESO 0.9 (2023); to add it later, follow the
+same per-version model/page/details pattern and list both versions in
+`createAvailableVersionPage`, newest first.
 
 ## Publishing a release
 

@@ -6,10 +6,12 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Project Overview
 
-A Freelens extension for the External Secrets Operator (ESO): a list page, a
-details panel and, for ExternalSecret, a Force Sync menu item for the three
-kinds of `external-secrets.io/v1`, ExternalSecret, SecretStore and
-ClusterSecretStore.
+A Freelens extension for the External Secrets Operator (ESO): a list page and
+a details panel for five kinds, ExternalSecret, ClusterExternalSecret,
+SecretStore and ClusterSecretStore of `external-secrets.io/v1` and PushSecret
+of `external-secrets.io/v1alpha1`; a Force Sync menu item for ExternalSecret
+and ClusterExternalSecret; and a panel in the details of a core Secret the
+operator manages, with a link to its ExternalSecret.
 
 - **Language**: TypeScript 7.x
 - **Runtime**: Freelens >= 2.0.0 (extension API v2, `engines.freelens: ^2.0.0`).
@@ -84,13 +86,15 @@ pnpm clean:all            # Clean everything (dist, dts, node_modules, tgz)
 ```text
 src/
   main/index.ts                      # Main entry (Main.LensExtension), stateless
-  renderer/index.tsx                 # Renderer entry: pages, details panels, menu item, customResources
+  renderer/index.tsx                 # Renderer entry: pages, details panels, menu items, customResources
   renderer/api/types.ts              # ESO spec and status types
-  renderer/api/store-helpers.ts      # Condition helpers shared by the models and the details panels
-  renderer/api/<kind>/<kind>-v1.ts   # Model, KubeApi and KubeObjectStore of a kind, with its tests
+  renderer/api/store-helpers.ts      # Condition helpers and formatters shared by the models and the details panels
+  renderer/api/links.ts              # selfLinks of objects and of the store an object refers to, for the panels' links
+  renderer/api/secret-owner.ts       # The ExternalSecret that owns a Secret, from its owner reference and label
+  renderer/api/<kind>/<kind>-<version>.ts # Model, KubeApi and KubeObjectStore of a kind, with its tests
   renderer/pages/                    # One list page per kind, and their CSS module
-  renderer/details/                  # ExternalSecretDetails, and StoreDetails for both store kinds
-  renderer/menus/                    # Force Sync menu item of ExternalSecret
+  renderer/details/                  # One panel per kind, StoreDetails for both store kinds, SecretEsoDetails on the host's Secret
+  renderer/menus/                    # ForceSyncMenuItem, for ExternalSecret and ClusterExternalSecret
   renderer/components/               # createAvailableVersionPage, ErrorBoundary and its wrappers, ErrorPage
   renderer/icons/                    # The SVG icon, imported with ?raw, and its component
   renderer/vars.scss                 # SCSS variables
@@ -109,8 +113,10 @@ source maps. `main` and `renderer` in `package.json` point at the two entries.
 ## CRD KubeObject Pattern
 
 A model is a subclass of `Renderer.K8sApi.LensExtensionKubeObject`, one file
-per kind: `src/renderer/api/externalsecret/externalsecret-v1.ts`,
-`secretstore/secretstore-v1.ts` and `clustersecretstore/clustersecretstore-v1.ts`.
+per kind and version: `src/renderer/api/externalsecret/externalsecret-v1.ts`,
+`clusterexternalsecret/clusterexternalsecret-v1.ts`,
+`pushsecret/pushsecret-v1alpha1.ts`, `secretstore/secretstore-v1.ts` and
+`clustersecretstore/clustersecretstore-v1.ts`.
 
 The host reads the model's metadata from the class, through `static readonly`
 properties. The objects it hands to the extension, in a list, a details panel
@@ -187,7 +193,7 @@ served. Freelens restores the last page when a cluster is opened, so this
 happens often. `src/renderer/components/available-version.test.tsx` checks it
 with a spy on `getStore` that reads an observable.
 
-`customResources` in `src/renderer/index.tsx` lists the three model classes.
+`customResources` in `src/renderer/index.tsx` lists the five model classes.
 The host reads the group and plural from each class's `crd`, and while the
 extension is enabled it leaves the resources out of the Custom Resources tree
 of the cluster sidebar, where they would otherwise be listed a second time
@@ -232,7 +238,9 @@ has the mapping and the sources), not from memory:
 5. **Menu items** in `src/renderer/menus/`, registered in `kubeObjectMenuItems`
    with `Renderer.K8sApi.menuItemFor` and the model class, only for what the
    resource supports: Force Sync writes the `external-secrets.io/force-sync`
-   annotation, which the ESO controller reconciles on.
+   annotation, which the ESO controller reconciles on for ExternalSecret and
+   ClusterExternalSecret, and not for the stores or PushSecret
+   (`docs/eso-api.md`, section 4.2).
 6. **`customResources`**: the model class of every version that has a page.
 7. **Tests** for the static helpers, next to the model; a member of the host
    that a test reaches goes into the stub, as small as the test needs.
@@ -277,13 +285,27 @@ from the Custom Resources tree.
   tells two kinds or versions apart by the `declare kind` and
   `declare apiVersion` literals of each model ("CRD KubeObject Pattern").
 - The components are registered as they are, `Details: ExternalSecretDetails`
-  and `MenuItem: ExternalSecretForceSyncMenuItem`. Their props are
+  and `MenuItem: ForceSyncMenuItem`. Their props are
   `Renderer.Component.KubeObjectDetailsProps<Model>` and
   `Common.Types.KubeObjectMenuItemProps<Model>`: the concrete model class, never
   `any`, and only what the host passes. A menu item does not extend
   `Renderer.Component.KubeObjectMenuProps`, the props of the host's whole
-  `KubeObjectMenu`. `StoreDetails` takes the union of the two store models and
-  serves both registrations.
+  `KubeObjectMenu`. A component may take the union of the models it serves:
+  `StoreDetails` serves both store kinds, and `ForceSyncMenuItem` serves
+  ExternalSecret and ClusterExternalSecret, picking the store to patch by the
+  `kind` of the object, a literal on each model.
+- `SecretEsoDetails` is registered with `detailsFor(Renderer.K8sApi.Secret, ...)`,
+  on a built-in kind of the host, whose `apiVersions` the helper reads from
+  `apiBase`. It reads the owner reference and the managed label of the Secret
+  itself (`src/renderer/api/secret-owner.ts`), so it needs no store, and it
+  renders nothing for a Secret the operator does not manage.
+- A link to another object is `Renderer.Component.MaybeLink` with
+  `Renderer.Navigation.getMaybeDetailsUrl(selfLink)`, and the selfLink comes
+  from `selfLinkOf` or `storeSelfLink` in `src/renderer/api/links.ts`, built
+  from the kind's `apiBase`. An empty selfLink renders the text without a link,
+  as for a SecretStore referred to from a cluster-scoped object, which lives in
+  each target namespace. Nothing loads another store for a link: the drawer
+  resolves the object when it opens.
 - The host renders a cluster page with `params` only. A page that needs the
   extension gets it from the registration
   (`Page: () => <ExternalSecretsPageAvailable extension={this} />`), with the

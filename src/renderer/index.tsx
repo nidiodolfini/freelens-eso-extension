@@ -4,8 +4,10 @@
  */
 
 import { Renderer } from "@freelensapp/extensions";
+import { ClusterExternalSecret } from "./api/clusterexternalsecret/clusterexternalsecret-v1";
 import { ClusterSecretStore } from "./api/clustersecretstore/clustersecretstore-v1";
 import { ExternalSecret } from "./api/externalsecret/externalsecret-v1";
+import { PushSecret } from "./api/pushsecret/pushsecret-v1alpha1";
 import { SecretStore } from "./api/secretstore/secretstore-v1";
 import { createAvailableVersionPage } from "./components/available-version";
 import {
@@ -13,19 +15,32 @@ import {
   withMenuItemErrorBoundary,
   withPageErrorBoundary,
 } from "./components/error-boundary";
+import { ClusterExternalSecretDetails } from "./details/cluster-external-secret-details";
 import { ExternalSecretDetails } from "./details/external-secret-details";
+import { PushSecretDetails } from "./details/push-secret-details";
+import { SecretEsoDetails } from "./details/secret-eso-details";
 import { StoreDetails } from "./details/store-details";
 import { ExternalSecretsIcon } from "./icons/external-secrets";
-import { ExternalSecretForceSyncMenuItem } from "./menus/external-secret-force-sync-menu-item";
+import { ForceSyncMenuItem } from "./menus/force-sync-menu-item";
+import { ClusterExternalSecretsPage } from "./pages/cluster-external-secrets-page";
 import { ClusterSecretStoresPage } from "./pages/cluster-secret-stores-page";
 import { ExternalSecretsPage } from "./pages/external-secrets-page";
+import { PushSecretsPage } from "./pages/push-secrets-page";
 import { SecretStoresPage } from "./pages/secret-stores-page";
 
-// Each kind serves a single API version, external-secrets.io/v1. The pages still go through
-// createAvailableVersionPage so that each of them shows the "Not Available" page when the CRD is
-// not installed in the cluster, and follows the host's API registry as it loads.
+// Each kind serves a single API version, external-secrets.io/v1 for all but PushSecret, which is at v1alpha1. The
+// pages still go through createAvailableVersionPage so that each of them shows the "Not Available" page when the CRD
+// is not installed in the cluster, and follows the host's API registry as it loads.
 const ExternalSecretsPageAvailable = createAvailableVersionPage("External Secrets", [
   { kubeObjectClass: ExternalSecret, PageComponent: ExternalSecretsPage, version: "v1" },
+]);
+
+const ClusterExternalSecretsPageAvailable = createAvailableVersionPage("Cluster External Secrets", [
+  { kubeObjectClass: ClusterExternalSecret, PageComponent: ClusterExternalSecretsPage, version: "v1" },
+]);
+
+const PushSecretsPageAvailable = createAvailableVersionPage("Push Secrets", [
+  { kubeObjectClass: PushSecret, PageComponent: PushSecretsPage, version: "v1alpha1" },
 ]);
 
 const SecretStoresPageAvailable = createAvailableVersionPage("Secret Stores", [
@@ -46,6 +61,18 @@ export default class EsoRenderer extends Renderer.LensExtension {
       id: "external-secrets",
       components: {
         Page: () => <ExternalSecretsPageAvailable extension={this} />,
+      },
+    },
+    {
+      id: "cluster-external-secrets",
+      components: {
+        Page: () => <ClusterExternalSecretsPageAvailable extension={this} />,
+      },
+    },
+    {
+      id: "push-secrets",
+      components: {
+        Page: () => <PushSecretsPageAvailable extension={this} />,
       },
     },
     {
@@ -79,6 +106,20 @@ export default class EsoRenderer extends Renderer.LensExtension {
       components: {},
     },
     {
+      id: "cluster-external-secrets",
+      parentId: "eso",
+      title: ClusterExternalSecret.crd.title,
+      target: { pageId: "cluster-external-secrets" },
+      components: {},
+    },
+    {
+      id: "push-secrets",
+      parentId: "eso",
+      title: PushSecret.crd.title,
+      target: { pageId: "push-secrets" },
+      components: {},
+    },
+    {
       id: "secret-stores",
       parentId: "eso",
       title: SecretStore.crd.title,
@@ -94,20 +135,25 @@ export default class EsoRenderer extends Renderer.LensExtension {
     },
   ];
 
-  // Every kind has a page of its own, so the host leaves all three out of the Custom Resources tree of the cluster
+  // Every kind has a page of its own, so the host leaves all of them out of the Custom Resources tree of the cluster
   // sidebar, where they would otherwise be listed a second time under external-secrets.io.
-  customResources = [ExternalSecret, SecretStore, ClusterSecretStore];
+  customResources = [ExternalSecret, ClusterExternalSecret, PushSecret, SecretStore, ClusterSecretStore];
 
   // The helpers take `kind` and `apiVersions` from the model class and type the props of the panel and the item from
   // it, so a panel or an item written for another kind fails the type check. StoreDetails takes the union of the two
-  // store models and serves both registrations.
+  // store models and serves both registrations, as ForceSyncMenuItem does for the two kinds that take the annotation.
+  // The panel on the host's Secret is the way back from a managed Secret to its ExternalSecret.
   kubeObjectDetailItems: Renderer.LensExtension["kubeObjectDetailItems"] = [
     Renderer.K8sApi.detailsFor(ExternalSecret, { priority: 10, Details: ExternalSecretDetails }),
+    Renderer.K8sApi.detailsFor(ClusterExternalSecret, { priority: 10, Details: ClusterExternalSecretDetails }),
+    Renderer.K8sApi.detailsFor(PushSecret, { priority: 10, Details: PushSecretDetails }),
     Renderer.K8sApi.detailsFor(SecretStore, { priority: 10, Details: StoreDetails }),
     Renderer.K8sApi.detailsFor(ClusterSecretStore, { priority: 10, Details: StoreDetails }),
+    Renderer.K8sApi.detailsFor(Renderer.K8sApi.Secret, { priority: 10, Details: SecretEsoDetails }),
   ].map((registration) => withDetailsErrorBoundary(this, registration));
 
   kubeObjectMenuItems: Renderer.LensExtension["kubeObjectMenuItems"] = [
-    Renderer.K8sApi.menuItemFor(ExternalSecret, { MenuItem: ExternalSecretForceSyncMenuItem }),
+    Renderer.K8sApi.menuItemFor(ExternalSecret, { MenuItem: ForceSyncMenuItem }),
+    Renderer.K8sApi.menuItemFor(ClusterExternalSecret, { MenuItem: ForceSyncMenuItem }),
   ].map((registration) => withMenuItemErrorBoundary(this, registration));
 }
