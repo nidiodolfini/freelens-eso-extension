@@ -3,6 +3,7 @@ import React from "react";
 import { ErrorPage } from "./error-page";
 
 type PageRegistration = Renderer.LensExtension["clusterPages"][number];
+type DetailRegistration = Renderer.LensExtension["kubeObjectDetailItems"][number];
 type MenuRegistration = Renderer.LensExtension["kubeObjectMenuItems"][number];
 
 export interface ErrorBoundaryProps {
@@ -84,14 +85,13 @@ export function withPageErrorBoundary(
 }
 
 /**
- * The registration of a details panel, made as a raw `kubeObjectDetailItems` entry, with the panel inside an error
- * boundary that renders it again for a new object. The KubeObject type flows through, so the wrapper keeps the
- * `object` prop of the panel typed as its model.
+ * The registration of a details panel, made by `Renderer.K8sApi.detailsFor`, with the panel inside an error boundary
+ * that renders it again for a new object.
  */
-export function withDetailsErrorBoundary<Kube extends Renderer.K8sApi.KubeObject>(
+export function withDetailsErrorBoundary(
   extension: Renderer.LensExtension,
-  registration: Common.Types.KubeObjectDetailRegistration<Kube>,
-): Common.Types.KubeObjectDetailRegistration<Kube> {
+  registration: DetailRegistration,
+): DetailRegistration {
   const { Details } = registration.components;
 
   return {
@@ -108,8 +108,8 @@ export function withDetailsErrorBoundary<Kube extends Renderer.K8sApi.KubeObject
 }
 
 /**
- * The registration of a menu item, made as a raw `kubeObjectMenuItems` entry, with the item inside an error boundary
- * that renders nothing in the menu after an error, and renders the item again for a new object.
+ * The registration of a menu item, made by `Renderer.K8sApi.menuItemFor`, with the item inside an error boundary that
+ * renders nothing in the menu after an error, and renders the item again for a new object.
  */
 export function withMenuItemErrorBoundary(
   extension: Renderer.LensExtension,

@@ -4,10 +4,10 @@ A Freelens extension for the [External Secrets Operator](https://external-secret
 browse ExternalSecrets, SecretStores and ClusterSecretStores, see their sync status at a
 glance, and trigger a manual sync from the UI.
 
-Built for the Freelens **extension API v1** (Freelens 1.x, `engines.freelens: ^1.8.0`), with
-the build layout of the official
-[`freelensapp/freelens-fluxcd-extension`](https://github.com/freelensapp/freelens-fluxcd-extension)
-v5.3.1 (electron-vite, CommonJS bundles in `out/`).
+Built for the Freelens **extension API v2** (Freelens 2.x, `engines.freelens: ^2.0.0`), with
+the build, type-check, test and lint layout of the reference template
+[`freelensapp/freelens-example-extension`](https://github.com/freelensapp/freelens-example-extension)
+(Vite 8, ES module bundles in `dist/`).
 
 Repository: <https://github.com/nidiodolfini/freelens-eso-extension> ·
 npm package: [`freelens-eso-extension`](https://www.npmjs.com/package/freelens-eso-extension) ·
@@ -32,6 +32,9 @@ Each resource also gets a details panel in the drawer: target Secret, store, ref
 policy/interval, last sync time, synced resource version and the full conditions with their
 messages as tooltips.
 
+While the extension is enabled, the three kinds are left out of the Custom Resources tree of
+the cluster sidebar, so each of them is listed once, under "External Secrets".
+
 **Force Sync**: the `ExternalSecret` menu gains a "Force Sync" action, which writes a fresh
 timestamp to the `external-secrets.io/force-sync` annotation — the same as
 `kubectl annotate es <name> force-sync=$(date +%s) --overwrite`. The controller reconciles
@@ -40,17 +43,34 @@ whenever the annotation changes, so the secret is refreshed immediately. `Secret
 
 ## Requirements
 
-- Freelens 1.8 or newer (extension API v1; tested on 1.10.x).
+- Freelens 2.0 or newer (extension API v2). Freelens 1.x needs a 1.x release of the
+  extension.
 - A cluster with the External Secrets Operator installed (`external-secrets.io/v1`).
 
 ## Installation
 
-In Freelens, open **Extensions**, choose **Install** and type `freelens-eso-extension`
-(no path). Freelens resolves the package from the npm registry, exactly like the official
-extensions. Enable it, and the "External Secrets" sidebar group appears on every cluster.
+Open Freelens and go to Extensions (`ctrl`+`shift`+`E` or `cmd`+`shift`+`E`). The field at
+the top takes a package name, the URL of a tarball, or the path to a tarball or a directory.
 
-To install from a local checkout instead (for development), see
-[Development](#development) below.
+### From the registry
+
+Enter `freelens-eso-extension` and press Install. Freelens resolves the package from the npm
+registry, exactly like the official extensions. Enable it, and the "External Secrets" sidebar
+group appears on every cluster.
+
+### From a release tarball
+
+Each [release](https://github.com/nidiodolfini/freelens-eso-extension/releases) has the
+extension as `freelens-eso-extension-<version>.tgz`. Use a release whose major version
+matches your Freelens version. Enter the URL of the `.tgz` asset and press Install, or
+download it and enter its path.
+
+### From a directory
+
+Build the extension (see below), then enter the path to your checkout, the directory with
+`package.json`, and press Install. Freelens runs the extension from that directory, from the
+files in `dist/`, and lists it as unverified. This is how you work on the extension: see
+[Development loop](#development-loop).
 
 ## Usage
 
@@ -75,35 +95,52 @@ To install from a local checkout instead (for development), see
 
 ## Development
 
-Node 22+ and pnpm are required.
+Node.js 24 (`.nvmrc`, `mise.toml`) and pnpm 12 through corepack (`packageManager` in
+`package.json`) are required.
 
 ```powershell
 pnpm install
-pnpm type:check     # tsc -p tsconfig.json (single program, as in the fluxcd extension)
+pnpm type:check     # main, renderer, tests, tooling and environment tests, one program each
 pnpm test:unit      # vitest
-pnpm build          # type check, then electron-vite build -> out/main and out/renderer (CommonJS)
-pnpm biome:fix      # formatting/lint (TypeScript, TSX, JSON, CSS, HTML)
+pnpm build          # vite build (renderer) and vite build --mode main -> dist/
+pnpm dev            # both builds in watch mode, for a directory install
+pnpm biome:fix      # formatting/lint (TypeScript, TSX, JSON, CSS, SCSS, HTML, YAML, Markdown)
 pnpm biome:check
 pnpm knip:check     # unused files and dependencies (downloads knip via pnpm dlx)
+pnpm trunk:check    # TOML, shell, workflows, yamllint, and Biome again
 pnpm pack:dev       # bump prerelease + build + .tgz to install in Freelens
-pnpm clean          # remove out/
+pnpm clean          # remove dist/
 ```
 
-To load the checkout in Freelens, run `pnpm install && pnpm build`, then in **Extensions**
-choose **Install from directory** and point at this directory; confirm loading the
-extension "in place" so rebuilds reload it automatically.
+Neither `pnpm build` nor `pnpm dev` type-checks; run `pnpm type:check` for that.
+
+### Development loop
+
+Install the extension from your checkout once, as described in
+[From a directory](#from-a-directory), then run:
+
+```powershell
+pnpm dev
+```
+
+It rebuilds the extension whenever a source file changes, and Freelens reloads the
+extension after each rebuild, without a restart and without packing. Stop it with
+`ctrl`+`C`. A change to `main` or `renderer` in `package.json` needs Freelens restarted once.
 
 ## Project structure
 
 ```text
-electron.vite.config.js                          # electron-vite config (main + renderer in preload)
-build/global-externals.js                        # plugin: react/mobx/... -> host globals (v1)
+vite.config.mjs                                  # Vite config: renderer (vite build) and main (--mode main)
+build/vite-plugin-host-modules.mjs               # plugin: react/mobx/... -> globalThis.FreelensExtensionApi
+build/vite-plugin-standard-decorators.mjs        # plugin: lowers standard decorators with esbuild
+build/vite-plugin-css-module-declarations.mjs    # plugin: writes the *.module.d.scss.ts declarations
+tsconfig.base.json                               # compiler options shared by every program
+environment-tests/                               # probes that keep Node out of the renderer and the DOM out of main
 src/
   main/index.ts                                  # main entry (stateless)
-  renderer/index.tsx                             # v1 registrations: 3 pages, details, menu
+  renderer/index.tsx                             # registrations: 3 pages, details, menu, customResources
   renderer/api/types.ts                          # ESO spec/status types
   renderer/api/store-helpers.ts                  # condition helpers shared by the models and panels
-  renderer/api/lazy-store.ts                     # store built and registered on first use, in a cluster frame
   renderer/api/externalsecret/externalsecret-v1.ts   # ExternalSecret model (+ Api/Store, test)
   renderer/api/secretstore/secretstore-v1.ts         # SecretStore model (+ Api/Store, test)
   renderer/api/clustersecretstore/clustersecretstore-v1.ts # ClusterSecretStore model (+ Api/Store, test)
@@ -112,13 +149,16 @@ src/
   renderer/menus/                                # Force Sync (ExternalSecret)
   renderer/icons/                                # External Secrets Operator logo (currentColor)
   renderer/components/                           # createAvailableVersionPage, error boundaries
+  common/                                        # code both entries would share (none today; its tsconfig stays)
+test/freelens-extensions.ts                      # runtime stub of @freelensapp/extensions for Vitest
 examples/eso/                                    # test objects (kubectl apply -f)
 docs/eso-api.md                                  # ESO API notes the types follow
 AGENTS.md                                        # guide for coding agents
 ```
 
-Build output goes to `out/main/index.js` and `out/renderer/index.js` (CommonJS bundles, like
-the other Freelens 1.x extensions); `package.json` points `main`/`renderer` at them.
+Build output goes to `dist/main.js`, `dist/renderer.js` and `dist/renderer.css`, with source
+maps; `package.json` points `main`/`renderer` at the two entries, and Freelens links the
+stylesheet next to the renderer entry.
 
 ## Supported API versions
 
